@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from options import opt
 
 short_memory_threshold = 1e5
@@ -15,12 +17,12 @@ class Reward:
     def get_reward(self, normalized: bool):
         if normalized:
             raise NotImplementedError("Normalized reward not implemented")
-        if opt.reward_policy.current_reward_policy == opt.c.RL_POLICY:
+        if opt.reward_policy.reward_policies[opt.reward_policy.current_reward_policy] == opt.c.RL_POLICY:
             return self.rl_component
-        elif opt.reward_policy.current_reward_policy == opt.c.DAL_POLICY:
+        elif opt.reward_policy.reward_policies[opt.reward_policy.current_reward_policy] == opt.c.DAL_POLICY:
             return self.ll_component + self.dal_component
         else:
-            raise Exception("Invalid reward policy")
+            raise Exception(f"Invalid reward policy {opt.reward_policy.reward_policies[opt.reward_policy.current_reward_policy]}")
 
     def reset(self, value):
         self.rl_component = value
@@ -64,28 +66,25 @@ class DoubleQRewards:
             if opt.reward_policy.policy_switch_counter > opt.reward_policy.reward_switch_policy_threshold:
                 opt.reward_policy.policy_switch_counter = 0
                 switch_policy = opt.reward_policy.switch_policy
-                if switch_policy == "NO_CHANGE":
+                if switch_policy == opt.c.NO_CHANGE:
                     # Do nothing
                     pass
-                elif switch_policy == "CHANGE":
+                elif switch_policy == opt.c.CHANGE:
                     self.rotate_reward_policy()
-                elif switch_policy == "RESET":
+                elif switch_policy == opt.c.NO_RESET:
                     self.rotate_reward_policy()
                     self.reset_rewards()
-                elif switch_policy == "RANDOM":
+                elif switch_policy == opt.c.RANDOM:
                     self.rotate_reward_policy()
                     self.randomize_rewards()
-                elif switch_policy == "STEAL":
+                elif switch_policy == opt.c.STEAL:
                     raise NotImplementedError("Not implemented")
                 else:
-                    raise Exception("Invalid reward switch policy")
+                    raise Exception(f"Invalid reward switch policy {switch_policy}")
 
-    def update_rewards(self, new_domains_result, v: int, w: int) -> None:
-        reward = new_domains_result.reward
-        new_domains = new_domains_result.new_domains
-
-        dal_reward = len(new_domains)
-
+    def update_rewards(self, new_domains_result: Tuple[int, int], v: int, w: int) -> None:
+        reward, dal_reward = new_domains_result
+        
         # update rewards
         if reward > 0:
 
@@ -94,7 +93,7 @@ class DoubleQRewards:
             self.Q[v][w].update(reward, dal_reward)
 
             # Do not decay if current policy is RL!
-            if opt.mcs_method != RL_DAL or opt.reward_policy.current_reward_policy != opt.c.RL_POLICY:
+            if opt.mcs_method != opt.c.RL_DAL or opt.reward_policy.reward_policies[opt.reward_policy.current_reward_policy] != opt.c.RL_POLICY:
                 # TODO if we normalize, we might have to adjust the thresholds
                 if self.get_vertex_reward(v, False) > short_memory_threshold:
                     for r in self.V:
@@ -107,7 +106,7 @@ class DoubleQRewards:
         return self.V[v].get_reward(normalized)
 
     def get_pair_reward(self, v: int, w: int, normalized: bool) -> float:
-        if opt.mcs_method == RL_DAL and opt.reward_policy.current_reward_policy == opt.c.RL_POLICY:
+        if opt.mcs_method == opt.c.RL_DAL and opt.reward_policy.reward_policies[opt.reward_policy.current_reward_policy] == opt.c.RL_POLICY:
             return self.SingleQ[w].get_reward(normalized)
         else:
             return self.Q[v][w].get_reward(normalized)

@@ -39,7 +39,7 @@ def mcsplit():
 
         solution = mcs(g0, g1, rewards)
 
-        logging.info("Solution size: ", len(solution))
+        logging.info(f"Solution size: {len(solution)}")
 
     logging.info("Arguments:")
     logging.info(opt)

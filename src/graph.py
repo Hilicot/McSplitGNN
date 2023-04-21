@@ -1,9 +1,10 @@
 from __future__ import annotations
-import warnings
-from options import opt
+from typing import List
 import os
-import numpy as np
 import logging
+
+from options import opt
+
 
 class Node:
     id: int
@@ -12,7 +13,7 @@ class Node:
 
     def __init__(self, id, label):
         self.id = id
-        self.label = label
+        self.label = label << 1
         self.adjNodes = []
 
 
@@ -24,13 +25,16 @@ class Graph:
 
     def __init__(self, n):
         self.n = n
-        self.e = -1
+        self.e = 0
         self.adjlist = [Node(i, 0) for i in range(n)]
         self.leaves = [[] for i in range(n)]
 
     def get(self, u, v):
-        if u < n:
-            return 1 if self.adjlist[u].ajNodes[v] else 0
+        if u < self.n:
+            for node in self.adjlist[u].adjNodes:
+                if node.id == v:
+                    return 1
+        return 0   
 
     def pack_leaves(self):
         deg = [len(self.adjlist[i].adjNodes) for i in range(self.n)]
@@ -51,10 +55,12 @@ class Graph:
             self.leaves[u].sort()
 
     def add_edge(self, u: int, v: int):
-        if self.n > u != v < self.n:
+        self.e += 1
+        if u != v:
             self.adjlist[u].adjNodes.append(Node(v, 0))
             self.adjlist[v].adjNodes.append(Node(u, 0))
-            self.e += 1
+        else:
+            self.adjlist[u].label |= 1
 
     def computeNumEdges(self):
         self.e = 0
@@ -64,9 +70,10 @@ class Graph:
         return self.e
 
     def computeDensity(self):
-        if self.e == -1:
+        if self.e == 0:
             self.computeNumEdges()
-        return 2*self.e/(self.n*(self.n-1))
+        return 2 * self.e / (self.n * (self.n - 1))
+
 
 def induced_subgraph(g: Graph, g_deg) -> Graph:
     # compute mapping vv
@@ -84,21 +91,23 @@ def induced_subgraph(g: Graph, g_deg) -> Graph:
         subg.adjlist[i].adjNodes.sort(key=lambda x: x.id)
     return subg
 
+
 def read_word(fp):
     a = fp.read(2)
     if len(a) != 2:
         raise Exception("Error reading file.")
-    return int.from_bytes(a, byteorder='little', signed=False)
+    return int.from_bytes(a, byteorder="little", signed=False)
+
 
 def readBinaryGraph(filename: str) -> Graph:
-    with open(os.path.join(opt.data_folder,filename), 'rb') as f:
+    with open(os.path.join(opt.data_folder, filename), "rb") as f:
         nvertices = read_word(f)
         logging.debug("Nvertices:", nvertices)
         g = Graph(nvertices)
 
         # Labelling scheme: see
         # https://github.com/ciaranm/cp2016-max-common-connected-subgraph-paper/blob/master/code/solve_max_common_subgraph.cc
-        m = g.n*33//100
+        m = g.n * 33 // 100
         p = 1
         k1 = 0
         k2 = 0
@@ -113,22 +122,26 @@ def readBinaryGraph(filename: str) -> Graph:
                 g.add_edge(i, target)
     return g
 
+
 def readAsciiGraph(filename: str) -> Graph:
-    with open(os.path.join(opt.data_folder,filename), "r") as f:
+    with open(os.path.join(opt.data_folder, filename), "r") as f:
         header = f.readline().split()
         nvertices, nedges = int(header[0]), int(header[1])
 
         logging.debug("nvertices: %d", nvertices)
         g = Graph(nvertices)
 
-        for i in range(nedges):
+        for _ in range(nedges):
             line = f.readline()
             v1, v2 = map(int, line.split())
             g.add_edge(v1, v2)
 
         if g.e != nedges:
-            logging.warning("Number of edges read is not equal to the number of edges in the file")
+            logging.warning(
+                f"Number of edges read ({g.e}) is not equal to the number of edges in the file ({nedges})"
+            )
     return g
+
 
 def readGraph(filename: str) -> Graph:
     if opt.dataset_format == "binary":

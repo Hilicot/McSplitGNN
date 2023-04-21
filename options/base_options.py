@@ -55,19 +55,10 @@ class Options:
         self.c = Constants()
 
         # static options
-        self.swap_policy = self.McSPLIT_SD
+        self.swap_policy = self.c.McSPLIT_SD
         self.sort_heuristic = SortPagerank()
-        self.reward_policy = RewardPolicy()
+        self.reward_policy = RewardPolicy(self.c)
         self.mcs_method = self.c.RL_DAL
-
-
-class RewardPolicy:
-    def __init__(self, c: Contants):
-        self.current_reward_policy = 1
-        self.reward_switch_policy_threshold = 0
-        self.reward_policies_num = 2
-        self.policy_switch_counter = 0
-        self.switch_policy = c.CHANGE
 
 class Constants:
     NO_SWAP = 0
@@ -82,6 +73,16 @@ class Constants:
     STEAL = 24
     RL_DAL = 30
     LL_DAL = 31
+
+class RewardPolicy:
+    def __init__(self, c: Constants):
+        self.current_reward_policy = c.DAL_POLICY
+        self.reward_switch_policy_threshold = 0
+        self.reward_policies_num = 2
+        self.policy_switch_counter = 0
+        self.switch_policy = c.CHANGE
+
+
 
 
 def null_coalescence(current_value, default_value):

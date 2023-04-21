@@ -2,7 +2,9 @@ from __future__ import annotations
 from options import opt
 from src.vertex_pair import VertexPair
 from src.graph import *
-from reward import Reward, DoubleQRewards
+from src.reward import Reward, DoubleQRewards
+from src.mcs import mcs
+import logging
 
 
 def mcsplit():
@@ -15,25 +17,32 @@ def mcsplit():
         # decide whether to swap the graphs based on swap_policy
         if do_swap_graphs(g0, g1):
             [g0, g1] = [g1, g0]
-            print("Swapped graphs")
+            logging.info("Swapped graphs")
 
         g0_degree = opt.sort_heuristic.sort(g0)
         g1_degree = opt.sort_heuristic.sort(g1)
 
-        g0_sorted = induced_subgraph(g0, g0_degree)
-        g1_sorted = induced_subgraph(g1, g1_degree)
+        if False:
+            logging.warning("Sorting disabled")
+            g0_sorted = induced_subgraph(g0, g0_degree)
+            g1_sorted = induced_subgraph(g1, g1_degree)
 
-        g0_sorted.pack_leaves()
-        g1_sorted.pack_leaves()
+            g0_sorted.pack_leaves()
+            g1_sorted.pack_leaves()
+        else:
+            g0_sorted = g0
+            g1_sorted = g1
+
+
 
         rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n)
 
         solution = mcs(g0, g1, rewards)
 
-        print("Solution size: ", len(solution))
+        logging.info("Solution size: ", len(solution))
 
-    print("Arguments:")
-    print(opt)
+    logging.info("Arguments:")
+    logging.info(opt)
 
 
 def do_swap_graphs(g0, g1):
@@ -50,5 +59,5 @@ def do_swap_graphs(g0, g1):
     elif opt.swap_policy == opt.c.NO_SWAP:
         return False
     else:
-        print("swap policy unknown")
+        logging.error("swap policy unknown")
         return False

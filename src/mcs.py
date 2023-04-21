@@ -1,9 +1,12 @@
 from __future__ import annotations
-from vertex_pair import VertexPair
-from reward import Reward, DoubleQRewards
-from graph import Graph
+from options import opt
+from src.vertex_pair import VertexPair
+from src.reward import Reward, DoubleQRewards
+from src.graph import Graph
+from src.bidomain import Bidomain
 import time
 import numpy as np
+import logging
 
 
 def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards) -> List[VertexPair]:
@@ -35,15 +38,15 @@ def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards) -> List[VertexPair]:
         right_len = len(right) - start_r
         domains.append(Bidomain(start_l, start_r, left_len, right_len, False))
 
-    incumbent = [(-1, -1)]*arguments.prime
+    incumbent = []
 
-    solve(g0, g1, incumbent, domains, left, right)
+    solve(g0, g1, rewards, incumbent, domains, left, right)
 
     test_info.recursions = nodes
     return incumbent
 
 
-def solve(g0: Graph, g1: Graph, best_sol: List[VertexPair], starting_bidomain: List[Bidomain], left: List[int],
+def solve(g0: Graph, g1: Graph, rewards:DoubleQRewards, best_sol: List[VertexPair], starting_bidomain: List[Bidomain], left: List[int],
           right: List[int]):
     start = time.monotonic()
     max_size = max(g0.n, g1.n)*2
@@ -61,11 +64,11 @@ def solve(g0: Graph, g1: Graph, best_sol: List[VertexPair], starting_bidomain: L
 
     while depth >= 0:
         if abort_due_to_timeout(start):
-            print("Timeout")
+            logging.info("Timeout")
             return
 
         if opt.max_iter and iteration >= opt.max_iter:
-            print("Reached", iteration, "iterations and ", nodes, "v iterations")
+            logging.info("Reached", iteration, "iterations and ", nodes, "v iterations")
             return
 
         if depth%2 == 0:
@@ -82,8 +85,7 @@ def solve(g0: Graph, g1: Graph, best_sol: List[VertexPair], starting_bidomain: L
                 bidomains[depth//2][current_bidomain[depth//2]].right_len += 1
                 continue
 
-            w = -1
-            current_bidomain[depth//2] = select_bidomain(bidomains[depth//2], left, len(current_sol))
+            current_bidomain[depth//2] = select_bidomain(bidomains[depth//2], left, rewards, len(current_sol))
             if current_bidomain[depth//2] == np.inf:
                 depth -= 1
                 v, w = current_sol[-1].get()
@@ -91,13 +93,13 @@ def solve(g0: Graph, g1: Graph, best_sol: List[VertexPair], starting_bidomain: L
                 bidomains.pop()
                 bidomains[depth//2][current_bidomain[depth//2]].right_len += 1
                 continue
-            v = solve_first_graph(left, bidomains[depth//2][current_bidomain[depth//2]])
+            v = solve_first_graph(left, bidomains[depth//2][current_bidomain[depth//2]],rewards)
             wselected = [False]*g1.n
-            iter += 1
+            iteration += 1
             depth += 1
         else:
-            w = solve_second_graph(right, bidomains[depth//2][current_bidomain[depth//2]], wselected)
-            iter += 1
+            w = solve_second_graph(right, bidomains[depth//2][current_bidomain[depth//2]], wselected, rewards)
+            iteration += 1
             if w != -1:
                 current_sol.append(VertexPair(v, w))
 
@@ -107,7 +109,7 @@ def solve(g0: Graph, g1: Graph, best_sol: List[VertexPair], starting_bidomain: L
                     time_elapsed = lap - start
 
                     if not opt.quiet and (nodes - len(best_sol) > 10 or len(best_sol)%100 == 0):
-                        print("Incumbent size:", len(best_sol), "Iterations:", iteration, "Time:", time_elapsed)
+                        logging.info("Incumbent size:", len(best_sol), "Iterations:", iteration, "Time:", time_elapsed)
 
                 bidomains.append(filter_domains(bidomains[depth//2], left, right, g0, g1, v, w,
                                                 arguments.directed or arguments.edge_labelled))
@@ -121,7 +123,7 @@ def solve(g0: Graph, g1: Graph, best_sol: List[VertexPair], starting_bidomain: L
                     remove_bidomain(bidomains[depth//2], current_bidomain[depth//2])
 
 
-def solve_first_graph(nodes: List[int], bd: Bidomain) -> int:
+def solve_first_graph(nodes: List[int], bd: Bidomain, rewards:DoubleQRewards) -> int:
     end = bd.l + bd.left_len
     idx = selectV_index(nodes, rewards, bd.l, bd.left_len)
     # put vertex at the back
@@ -130,7 +132,7 @@ def solve_first_graph(nodes: List[int], bd: Bidomain) -> int:
     bd.left_len -= 1
     return nodes[end-1]
 
-def solve_second_graph(nodes: List[int], bd: Bidomain, wselected: List[bool]) -> int:
+def solve_second_graph(nodes: List[int], bd: Bidomain, wselected: List[bool], rewards:DoubleQRewards) -> int:
     idx = selectW_index(nodes, rewards, bd.r, bd.right_len, wselected)
     bd.right_len -= 1
     wselected[nodes[idx]] = True

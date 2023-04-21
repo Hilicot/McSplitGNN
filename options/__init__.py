@@ -32,11 +32,11 @@ if opt is None:
 log_format = '%(levelname)s | %(asctime)s | %(filename)s line:%(lineno)d | %(message)s'
 dateformat = '%H:%M:%S'
 colored_format = ColoredFormatter("%(log_color)s" + log_format + "%(reset)s",datefmt=dateformat,log_colors={
-		'DEBUG':    'cyan',
+		'DEBUG':    'light_cyan',
 		'INFO':     'light_white',
-		'WARNING':  'yellow',
-		'ERROR':    'red',
-		'CRITICAL': 'red,bg_white',
+		'WARNING':  'light_yellow',
+		'ERROR':    'light_red',
+		'CRITICAL': 'light_red,bg_white',
 	},)
 
 

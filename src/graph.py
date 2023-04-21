@@ -3,6 +3,7 @@ import warnings
 from options import opt
 import os
 import numpy as np
+import logging
 
 class Node:
     id: int
@@ -92,7 +93,7 @@ def read_word(fp):
 def readBinaryGraph(filename: str) -> Graph:
     with open(os.path.join(opt.data_folder,filename), 'rb') as f:
         nvertices = read_word(f)
-        print("Nvertices:", nvertices)
+        logging.debug("Nvertices:", nvertices)
         g = Graph(nvertices)
 
         # Labelling scheme: see
@@ -114,9 +115,10 @@ def readBinaryGraph(filename: str) -> Graph:
 
 def readAsciiGraph(filename: str) -> Graph:
     with open(os.path.join(opt.data_folder,filename), "r") as f:
-        nvertices, nedges = map(int, f.readline().split())
+        header = f.readline().split()
+        nvertices, nedges = int(header[0]), int(header[1])
 
-        print("nvertices: ", nvertices)
+        logging.debug("nvertices: %d", nvertices)
         g = Graph(nvertices)
 
         for i in range(nedges):
@@ -125,7 +127,7 @@ def readAsciiGraph(filename: str) -> Graph:
             g.add_edge(v1, v2)
 
         if g.e != nedges:
-            warnings.warn("Number of edges read is not equal to the number of edges in the file")
+            logging.warning("Number of edges read is not equal to the number of edges in the file")
     return g
 
 def readGraph(filename: str) -> Graph:

@@ -1,8 +1,9 @@
 from options import opt
 from src.mcsplit import mcsplit
+import logging
 
 def debug():
-    print(opt)
+    logging.info(opt)
 
     mcsplit()
 

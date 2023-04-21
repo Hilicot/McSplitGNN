@@ -39,9 +39,9 @@ class Reward:
 
 class DoubleQRewards:
     def __init__(self, n, m):
-        V = [Reward() for _ in range(n)]
-        Q = [[Reward() for _ in range(m)] for _ in range(n)]
-        SingleQ = [Reward() for _ in range(m)]
+        self.V = [Reward() for _ in range(n)]
+        self.Q = [[Reward() for _ in range(m)] for _ in range(n)]
+        self.SingleQ = [Reward() for _ in range(m)]
 
     @staticmethod
     def rotate_reward_policy():

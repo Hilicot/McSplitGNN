@@ -2,7 +2,7 @@ from __future__ import annotations
 from options import opt
 from src.vertex_pair import VertexPair
 from src.graph import *
-import time
+from reward import Reward, DoubleQRewards
 
 
 def mcsplit():
@@ -26,10 +26,9 @@ def mcsplit():
         g0_sorted.pack_leaves()
         g1_sorted.pack_leaves()
 
-        # TODO init rewards
+        rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n)
 
-        opt.start_time = time.time()
-        solution = mcs(g0, g1)
+        solution = mcs(g0, g1, rewards)
 
         print("Solution size: ", len(solution))
 
@@ -38,7 +37,7 @@ def mcsplit():
 
 
 def do_swap_graphs(g0, g1):
-    if opt.swap_policy == opt.McSPLIT_SD:
+    if opt.swap_policy == opt.c.McSPLIT_SD:
         # get densities
         d0 = g0.computeDensity()
         d1 = g1.computeDensity()
@@ -46,9 +45,9 @@ def do_swap_graphs(g0, g1):
         de0 = abs(0.5 - d0)
         de1 = abs(0.5 - d1)
         return de1 > de0
-    elif opt.swap_policy == opt.McSPLIT_SO:
+    elif opt.swap_policy == opt.c.McSPLIT_SO:
         return g1.n > g0.n
-    elif opt.swap_policy == opt.NO_SWAP:
+    elif opt.swap_policy == opt.c.NO_SWAP:
         return False
     else:
         print("swap policy unknown")

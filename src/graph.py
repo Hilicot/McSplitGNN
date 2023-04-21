@@ -25,7 +25,7 @@ class Graph:
         self.n = n
         self.e = -1
         self.adjlist = [Node(i, 0) for i in range(n)]
-        self.leaves = []
+        self.leaves = [[] for i in range(n)]
 
     def get(self, u, v):
         if u < n:
@@ -69,7 +69,7 @@ class Graph:
 
 def induced_subgraph(g: Graph, g_deg) -> Graph:
     # compute mapping vv
-    vv = range(g.n)
+    vv = list(range(g.n))
     vv.sort(key=lambda x: g_deg[x], reverse=True)
 
     # sort graph
@@ -81,7 +81,7 @@ def induced_subgraph(g: Graph, g_deg) -> Graph:
             subg.adjlist[i].adjNodes[j].id = vv.index(subg.adjlist[i].adjNodes[j].id)
 
         subg.adjlist[i].adjNodes.sort(key=lambda x: x.id)
-
+    return subg
 
 def read_word(fp):
     a = fp.read(2)

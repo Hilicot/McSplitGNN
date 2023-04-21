@@ -2,8 +2,12 @@ import argparse
 import os
 import numpy as np
 from src.sort_heuristic import *
+import copy
 
 class BaseOptions:
+    parse_opt = None
+    opt = None
+
     def __init__(self):
         self.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         self.initialized = False
@@ -18,6 +22,8 @@ class BaseOptions:
         self.parser.add_argument('--data_folder', type=str, default=os.path.join("dataset"), help='path to the folder containing the dataset files')
         self.parser.add_argument('--dataset_list', type=list, default=dataset_list, help='list of datasets to train on')
         self.parser.add_argument('--timeout','-t', type=int, default=np.inf, help='timeout in seconds')
+        self.parser.add_argument('--max_iter','-i', type=int, default=np.inf, help='max number of iterations')
+        self.parser.add_argument('--quiet','-q', action='store_true', help='')
         self.parser.add_argument('--shuffle_input', type=bool, default=False, help='')
         self.parser.add_argument('--batch_size', type=int, default=1, help='')
 
@@ -34,28 +40,49 @@ class BaseOptions:
         if not self.initialized:
             self.initialize()
 
-        self.opt = self.parser.parse_args()
-        define_constants(self.opt)
-
-        # static options
-        self.opt.swap_policy = self.opt.McSPLIT_SD
-        self.opt.sort_heuristic = SortPagerank()
-        self.opt.reward_policy = RewardPolicy()
-
-
-        # other fields to use as gloabl variables
-        self.start_time = 0
-
+        self.parse_opt = self.parser.parse_args()
+        self.opt = Options(self.parse_opt)
         return self.opt
 
 
-class RewardPolicy:
-    reward_switch_policy_threshold = 0
+class Options:
+    def __init__(self, parse_opt):
+        # copy all the options from the parse options
+        for k, v in parse_opt.__dict__.items():
+            self.__dict__[k] = copy.deepcopy(v)
 
-def define_constants(opt):
-    opt.NO_SWAP = 0
-    opt.McSPLIT_SD = 1
-    opt.McSPLIT_SO = 2
+        # define constants
+        self.c = Constants()
+
+        # static options
+        self.swap_policy = self.McSPLIT_SD
+        self.sort_heuristic = SortPagerank()
+        self.reward_policy = RewardPolicy()
+        self.mcs_method = self.c.RL_DAL
+
+
+class RewardPolicy:
+    def __init__(self, c: Contants):
+        self.current_reward_policy = 1
+        self.reward_switch_policy_threshold = 0
+        self.reward_policies_num = 2
+        self.policy_switch_counter = 0
+        self.switch_policy = c.CHANGE
+
+class Constants:
+    NO_SWAP = 0
+    McSPLIT_SD = 1
+    McSPLIT_SO = 2
+    RL_POLICY = 10
+    DAL_POLICY = 12
+    NO_CHANGE = 20
+    CHANGE = 21
+    RESET = 22
+    RANDOM = 23
+    STEAL = 24
+    RL_DAL = 30
+    LL_DAL = 31
+
 
 def null_coalescence(current_value, default_value):
     if current_value is None:

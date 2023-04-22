@@ -48,5 +48,5 @@ class SortPagerank(SortBase):
                 break
             p = ranks
 
-        return ranks/epsilon
+        return (ranks//epsilon).astype(int)
 

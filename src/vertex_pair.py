@@ -1,5 +1,3 @@
-
-
 class VertexPair:
     v: int
     w: int
@@ -10,3 +8,6 @@ class VertexPair:
 
     def get(self):
         return self.v, self.w
+    
+    def __str__(self):
+        return f'({self.v} -> {self.w})'

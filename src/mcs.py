@@ -77,8 +77,8 @@ def solve(
             logging.info("Timeout")
             return best_sol
 
-        if opt.max_iter and iteration >= opt.max_iter:
-            logging.info("Reached", iteration, "iterations and ", nodes, "v iterations")
+        if opt.max_iter and iteration >= 2*opt.max_iter:
+            logging.info(f"Reached {iteration} iterations and {nodes} v iterations")
             return best_sol
 
         if depth % 2 == 0:
@@ -94,7 +94,8 @@ def solve(
                 bidomains.pop()
                 bidomains[depth // 2][current_bidomain[depth // 2]].right_len += 1
                 continue
-
+            
+            w = -1
             current_bidomain[depth // 2] = select_bidomain(
                 bidomains[depth // 2], left, rewards, len(current_sol)
             )
@@ -108,6 +109,7 @@ def solve(
             v = solve_first_graph(
                 left, bidomains[depth // 2][current_bidomain[depth // 2]], rewards
             )
+            # logging.debug(f'Depth={depth} | Selected v={v}, current bidomain {bidomains[depth // 2][current_bidomain[depth // 2]]}')
             wselected = [False] * g1.n
             iteration += 1
             depth += 1
@@ -120,6 +122,7 @@ def solve(
                 v,
             )
             iteration += 1
+            # logging.debug(f'Depth={depth} | Selected w={w}, current bidomain {bidomains[depth // 2][current_bidomain[depth // 2]]}')
             if w != -1:
                 current_sol.append(VertexPair(v, w))
 
@@ -153,9 +156,8 @@ def solve(
                 depth -= 1
 
                 if bidomains[depth // 2][current_bidomain[depth // 2]].left_len <= 0:
-                    bidomains[depth // 2].remove(
-                        bidomains[depth // 2][current_bidomain[depth // 2]]
-                    )
+                    bidomains[depth // 2][-1], bidomains[depth // 2][current_bidomain[depth // 2]] = bidomains[depth // 2][current_bidomain[depth // 2]], bidomains[depth // 2][-1]
+                    bidomains[depth // 2] =  bidomains[depth // 2][:-1]
 
     return best_sol
 
@@ -165,7 +167,7 @@ def solve_first_graph(nodes: List[int], bd: Bidomain, rewards: DoubleQRewards) -
     idx = selectV_index(nodes, rewards, bd.l, bd.left_len)
     # put vertex at the back
     if idx != np.inf:
-        nodes[idx], nodes[end - 1] = nodes[end - 1], nodes[idx]
+        nodes[bd.l + idx], nodes[end - 1] = nodes[end - 1], nodes[bd.l + idx]
     bd.left_len -= 1
     rewards.update_policy_counter(False)
     return nodes[end - 1]
@@ -179,10 +181,12 @@ def solve_second_graph(
     v: int,
 ) -> int:
     idx = selectW_index(nodes, rewards, v, bd.r, bd.right_len, wselected)
+    if idx != np.inf:
+        nodes[bd.r + idx], nodes[bd.r + bd.right_len - 1] = nodes[bd.r + bd.right_len - 1], nodes[bd.r + idx]
     bd.right_len -= 1
-    wselected[nodes[idx]] = True
+    wselected[nodes[bd.r + bd.right_len]] = True
     rewards.update_policy_counter(False)
-    return nodes[idx]
+    return nodes[bd.r + bd.right_len]
 
 
 def calc_bound(bidomains: List[Bidomain]) -> int:

@@ -19,27 +19,34 @@ def mcsplit():
             [g0, g1] = [g1, g0]
             logging.info("Swapped graphs")
 
-        g0_degree = opt.sort_heuristic.sort(g0)
-        g1_degree = opt.sort_heuristic.sort(g1)
-
-        if False:
-            logging.warning("Sorting disabled")
+        if True:
+            g0_degree = opt.sort_heuristic.sort(g0)
+            g1_degree = opt.sort_heuristic.sort(g1)
+            logging.debug('First graph degree')
+            logging.debug(g0_degree)
+            logging.debug('Second graph degree')
+            logging.debug(g1_degree)
             g0_sorted = induced_subgraph(g0, g0_degree)
             g1_sorted = induced_subgraph(g1, g1_degree)
 
             g0_sorted.pack_leaves()
             g1_sorted.pack_leaves()
         else:
+            logging.warning("Sorting disabled")
             g0_sorted = g0
             g1_sorted = g1
-
-
 
         rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n)
 
         solution = mcs(g0, g1, rewards)
-
-        logging.info(f"Solution size: {len(solution)}")
+        
+        if not check_sol(g0, g1, solution):
+            logging.error("Found invalid solution!")
+        else:
+            pass
+        if True:
+            logging.info(f"Solution size: {len(solution)}")
+            logging.debug(f'Solution: {" ".join([str(pair) for pair in solution])}')
 
     logging.info("Arguments:")
     logging.info(opt)
@@ -61,3 +68,27 @@ def do_swap_graphs(g0, g1):
     else:
         logging.error("swap policy unknown")
         return False
+
+def check_sol(g0: Graph, g1: Graph, solution: List[VertexPair]) -> bool:
+    used_left = [False] * g0.n
+    used_right = [False] * g1.n
+    
+    for i in range(len(solution)):
+        pair = solution[i]
+        
+        if used_left[pair.v] or used_right[pair.w]:
+            return False
+        
+        used_left[pair.v] = True
+        used_right[pair.w] = True
+        
+        if g0.adjlist[pair.v].label != g1.adjlist[pair.w].label:
+            return False
+        
+        for j in range(i + 1, len(solution)):
+            new_pair = solution[j]
+        
+            if g0.get(pair.v, new_pair.v) != g1.get(pair.w, new_pair.w):
+                return False
+    
+    return True

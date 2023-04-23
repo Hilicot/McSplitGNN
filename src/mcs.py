@@ -63,15 +63,16 @@ def solve(
     current_bidomain = [0] * max_size
     bidomains: List[List[Bidomain]] = [starting_bidomain]
     wselected = [False] * g1.n
-    g0_matched = [0] * g0.n
-    g1_matched = [0] * g1.n
+    g0_matched = [False] * g0.n
+    g1_matched = [False] * g1.n
 
     v = np.inf
     w = -1
 
     nodes = 0
     iteration = 1
-
+    last_len = None
+    
     while depth >= 0:
         if abort_due_to_timeout(start):
             logging.info("Timeout")
@@ -89,8 +90,11 @@ def solve(
                 depth -= 1
                 if depth < 0:
                     continue
-                v, w = current_sol[-1].get()
-                current_sol.pop()
+                while last_len and len(current_sol) > last_len:                    
+                    v, w = current_sol[-1].get()
+                    current_sol.pop()
+                    g0_matched[v] = False
+                    g1_matched[w] = False
                 bidomains.pop()
                 bidomains[depth // 2][current_bidomain[depth // 2]].right_len += 1
                 continue
@@ -101,8 +105,11 @@ def solve(
             )
             if current_bidomain[depth // 2] == np.inf:
                 depth -= 1
-                v, w = current_sol[-1].get()
-                current_sol.pop()
+                while last_len and len(current_sol) > last_len:                    
+                    v, w = current_sol[-1].get()
+                    current_sol.pop()
+                    g0_matched[v] = False
+                    g1_matched[w] = False
                 bidomains.pop()
                 bidomains[depth // 2][current_bidomain[depth // 2]].right_len += 1
                 continue
@@ -124,7 +131,10 @@ def solve(
             iteration += 1
             # logging.debug(f'Depth={depth} | Selected w={w}, current bidomain {bidomains[depth // 2][current_bidomain[depth // 2]]}')
             if w != -1:
+                last_len = len(current_sol)
                 current_sol.append(VertexPair(v, w))
+                g0_matched[v] = True
+                g1_matched[w] = True
 
                 if len(current_sol) > len(best_sol):
                     best_sol = [x for x in current_sol]
@@ -135,8 +145,7 @@ def solve(
                         logging.info(f"Incumbent size: {len(best_sol)} \t Iterations: {iteration} \t Time: {time_elapsed}")
 
                     rewards.update_policy_counter(True)
-
-                new_domains, total = filter_domains(
+                new_domains, total = generate_new_domains(
                     bidomains[depth // 2],
                     left,
                     right,
@@ -144,6 +153,9 @@ def solve(
                     g1,
                     v,
                     w,
+                    current_sol,
+                    g0_matched,
+                    g1_matched
                     # opt.directed or opt.edge_labelled because always False for us
                 )
 
@@ -274,7 +286,7 @@ def selectW_index(
     return idx
 
 
-def filter_domains(
+def generate_new_domains(
     bidomains: List[Bidomain],
     left: List[int],
     right: List[int],
@@ -282,18 +294,57 @@ def filter_domains(
     g1: Graph,
     v: int,
     w: int,
+    current_sol: List[VertexPair],
+    g0_matched: List[bool],
+    g1_matched: List[bool]
 ) -> Tuple[List[Bidomain], int]:
-    # TODO: LUM
     new_d: List[Bidomain] = []
     temp, total = 0, 0
+    
+    leaves_match_size = 0
+    i = j = 0
+    
+    while i < len(g0.leaves[v]) and j < len(g1.leaves[w]):
+        if g0.leaves[v][i].first < g1.leaves[w][j].first:
+            i += 1
+        elif g0.leaves[v][i].first > g1.leaves[w][j].first:
+            j += 1
+        else:
+            leaf0 = g0.leaves[v][i].second
+            leaf1 = g1.leaves[w][j].second
+            p = q = 0
+            while p < len(leaf0) and q < len(leaf1):
+                if g0_matched[leaf0[p]]:
+                    p +=1
+                elif g1_matched[leaf1[q]]:
+                    q += 1
+                else:
+                    v_leaf = leaf0[p]
+                    w_leaf = leaf1[q]
+                    p +=1 
+                    q += 1
+                    current_sol.append(VertexPair(v_leaf, w_leaf))
+                    g0_matched[v_leaf] = True
+                    g1_matched[w_leaf] = True
+                    leaves_match_size += 1    
+            i += 1
+            j += 1
 
     for old_bd in bidomains:
         l = old_bd.l
         r = old_bd.r
-        left_len = partition(left, l, old_bd.left_len, g0, v)
-        right_len = partition(right, r, old_bd.right_len, g1, w)
-        left_len_noedge = old_bd.left_len - left_len
-        right_len_noedge = old_bd.right_len - right_len
+        
+        if leaves_match_size > 0 and not old_bd.is_adjacent:
+            unmatched_left_len = remove_matched_vertex(left, l, old_bd.left_len, g0_matched)
+            unmatched_right_len = remove_matched_vertex(right, r, old_bd.right_len, g1_matched)
+        else:
+            unmatched_left_len = old_bd.left_len
+            unmatched_right_len = old_bd.right_len
+        
+        left_len = partition(left, l, unmatched_left_len, g0, v)
+        right_len = partition(right, r, unmatched_right_len, g1, w)
+        left_len_noedge = unmatched_left_len - left_len
+        right_len_noedge = unmatched_right_len - right_len
 
         # compute reward
         temp = (
@@ -319,6 +370,15 @@ def filter_domains(
 
     return new_d, total
 
+def remove_matched_vertex(arr: List[int], start: int, len: int, matched: List[bool]) -> int:
+    p = 0
+    
+    for i in range(len):
+        if not matched[arr[start + i]]:
+            arr[start + i], arr[start + p] = arr[start + p], arr[start + i]
+            p += 1
+    
+    return p
 
 def partition(all_vv: List[int], start: int, len: int, g: Graph, index: int):
     i = j = 0

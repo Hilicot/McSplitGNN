@@ -49,7 +49,7 @@ def mcsplit():
             logging.debug(f'Solution: {" ".join([str(pair) for pair in solution])}')
 
     logging.info("Arguments:")
-    logging.info(opt)
+    logging.info(vars(opt))
 
 
 def do_swap_graphs(g0, g1):

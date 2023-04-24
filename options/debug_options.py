@@ -21,7 +21,7 @@ class DebugOptionsObject:
         self.device = 'cpu'
         self.dataset_format = "ascii"
         self.timeout = 10
-        # self.max_iter = 10
+        self.max_iter = -1
         self.plot_graphs_on_loading = False  # Plot graphs when they are loaded into the model. (For debugging purposes)
 
 

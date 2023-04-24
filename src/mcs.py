@@ -85,7 +85,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             nodes += 1
 
             # check max iterations
-            if opt.max_iter and nodes > opt.max_iter:
+            if 0 < opt.max_iter < nodes:
                 logging.info(f"Reached {nodes} iterations")
                 return incumbent
 

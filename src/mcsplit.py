@@ -17,15 +17,11 @@ def mcsplit():
         # decide whether to swap the graphs based on swap_policy
         if do_swap_graphs(g0, g1):
             [g0, g1] = [g1, g0]
-            logging.info("Swapped graphs")
+            logging.debug("Swapped graphs")
 
         if True:
             g0_degree = opt.sort_heuristic.sort(g0)
             g1_degree = opt.sort_heuristic.sort(g1)
-            logging.debug('First graph degree')
-            logging.debug(g0_degree)
-            logging.debug('Second graph degree')
-            logging.debug(g1_degree)
             g0_sorted = induced_subgraph(g0, g0_degree)
             g1_sorted = induced_subgraph(g1, g1_degree)
 
@@ -38,7 +34,7 @@ def mcsplit():
 
         rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n)
 
-        solution = mcs(g0, g1, rewards)
+        solution = mcs(g0_sorted, g1_sorted, rewards)
         
         if not check_sol(g0, g1, solution):
             logging.error("Found invalid solution!")

@@ -89,6 +89,8 @@ def induced_subgraph(g: Graph, g_deg) -> Graph:
             subg.adjlist[i].adjNodes[j].id = vv.index(subg.adjlist[i].adjNodes[j].id)
 
         subg.adjlist[i].adjNodes.sort(key=lambda x: x.id)
+
+    subg.e = g.e
     return subg
 
 
@@ -100,7 +102,7 @@ def read_word(fp):
 
 
 def readBinaryGraph(filename: str) -> Graph:
-    with open(os.path.join(opt.data_folder, filename), "rb") as f:
+    with open(filename, "rb") as f:
         nvertices = read_word(f)
         logging.debug("Nvertices:", nvertices)
         g = Graph(nvertices)
@@ -124,7 +126,7 @@ def readBinaryGraph(filename: str) -> Graph:
 
 
 def readAsciiGraph(filename: str) -> Graph:
-    with open(os.path.join(opt.data_folder, filename), "r") as f:
+    with open(filename, "r") as f:
         header = f.readline().split()
         nvertices, nedges = int(header[0]), int(header[1])
 
@@ -144,10 +146,11 @@ def readAsciiGraph(filename: str) -> Graph:
 
 
 def readGraph(filename: str) -> Graph:
+    path = os.path.join(opt.data_folder, filename)
     if opt.dataset_format == "binary":
-        g = readBinaryGraph(filename)
+        g = readBinaryGraph(path)
     elif opt.dataset_format == "ascii":
-        g = readAsciiGraph(filename)
+        g = readAsciiGraph(path)
     else:
         raise Exception("Unknown dataset format: " + opt.dataset_format)
 

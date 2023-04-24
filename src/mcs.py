@@ -40,165 +40,126 @@ def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards) -> List[VertexPair]:
         right_len = len(right) - start_r
         domains.append(Bidomain(start_l, start_r, left_len, right_len, False))
 
-    logging.info(f"Found {len(domains)} starting domains.")
+    logging.debug(f"Found {len(domains)} starting domains.")
 
-    incumbent = solve(g0, g1, rewards, domains, left, right)
+    g0_matched = [False]*g0.n
+    g1_matched = [False]*g1.n
+    incumbent = solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, 1)
 
     return incumbent
 
+class Step:
+    def __init__(self, domains, wselected, w_iter=-1, v=-1, cur_len=0):
+        self.domains = domains
+        self.wselected = wselected
+        self.w_iter = w_iter
+        self.bd = None
+        self.v = v
+        self.cur_len = cur_len
+        self.bd_idx = -1
 
-def solve(
-    g0: Graph,
-    g1: Graph,
-    rewards: DoubleQRewards,
-    starting_bidomain: List[Bidomain],
-    left: List[int],
-    right: List[int],
-) -> List[VertexPair]:
-    best_sol: List[VertexPair] = []
-    start = time.monotonic()
-    max_size = max(g0.n, g1.n) * 2
-    depth = 0
-    current_sol: List[VertexPair] = []
-    current_bidomain = [0] * max_size
-    bidomains: List[List[Bidomain]] = [starting_bidomain]
-    wselected = [False] * g1.n
-    g0_matched = [False] * g0.n
-    g1_matched = [False] * g1.n
 
-    v = np.inf
-    w = -1
-
+def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matching_size_goal):
     nodes = 0
-    iteration = 1
-    last_len = None
-    
-    while depth >= 0:
+    steps = [Step(domains, set())]
+    incumbent = []
+    current = []
+    start = time.monotonic()
+
+    while len(steps) > 0:
+        s = steps[-1]
+
+        # check timeout
         if abort_due_to_timeout(start):
             logging.info("Timeout")
-            return best_sol
+            return incumbent
 
-        if opt.max_iter and iteration >= 2*opt.max_iter:
-            logging.info(f"Reached {iteration} iterations and {nodes} v iterations")
-            return best_sol
+        # delete eventual extra vertices from previous iterations
+        while len(current) > s.cur_len:
+            pr = current.pop()
+            g0_matched[pr.v] = 0
+            g1_matched[pr.w] = 0
 
-        if depth % 2 == 0:
+        """ V-step """
+        if s.w_iter == -1:
             nodes += 1
-            bound = len(current_sol) + calc_bound(bidomains[depth // 2])
 
-            if bound <= len(best_sol):
-                depth -= 1
-                if depth < 0:
-                    continue
-                while last_len and len(current_sol) > last_len:                    
-                    v, w = current_sol[-1].get()
-                    current_sol.pop()
-                    g0_matched[v] = False
-                    g1_matched[w] = False
-                bidomains.pop()
-                bidomains[depth // 2][current_bidomain[depth // 2]].right_len += 1
+            # check max iterations
+            if opt.max_iter and nodes > opt.max_iter:
+                logging.info(f"Reached {nodes} iterations")
+                return incumbent
+
+            # If the current matching is larger than the incumbent matching, update the incumbent
+            if len(current) > len(incumbent):
+                incumbent.clear()
+                incumbent.extend(current)
+                if not opt.quiet:
+                    print(f"Incumbent size: {len(incumbent)}")
+
+                rewards.update_policy_counter(True)
+
+            # Prune the branch if the upper bound is too small
+            bound = len(current) + calc_bound(s.domains)
+            if bound <= len(incumbent) or bound < matching_size_goal:
+                steps.pop()
+                # print(f"nodes: {nodes} pruned")
                 continue
-            
-            w = -1
-            current_bidomain[depth // 2] = select_bidomain(
-                bidomains[depth // 2], left, rewards, len(current_sol)
-            )
-            if current_bidomain[depth // 2] == np.inf:
-                depth -= 1
-                while last_len and len(current_sol) > last_len:                    
-                    v, w = current_sol[-1].get()
-                    current_sol.pop()
-                    g0_matched[v] = False
-                    g1_matched[w] = False
-                bidomains.pop()
-                bidomains[depth // 2][current_bidomain[depth // 2]].right_len += 1
+
+            # Select a bidomain based on the heuristic
+            bd_idx = select_bidomain(s.domains, left, rewards, len(current))
+            if bd_idx == -1:
+                # In the MCCS case, there may be nothing we can branch on
                 continue
-            v = solve_first_graph(
-                left, bidomains[depth // 2][current_bidomain[depth // 2]], rewards
-            )
-            # logging.debug(f'Depth={depth} | Selected v={v}, current bidomain {bidomains[depth // 2][current_bidomain[depth // 2]]}')
-            wselected = [False] * g1.n
-            iteration += 1
-            depth += 1
-        else:
-            w = solve_second_graph(
-                right,
-                bidomains[depth // 2][current_bidomain[depth // 2]],
-                wselected,
-                rewards,
-                v,
-            )
-            iteration += 1
-            # logging.debug(f'Depth={depth} | Selected w={w}, current bidomain {bidomains[depth // 2][current_bidomain[depth // 2]]}')
-            if w != -1:
-                last_len = len(current_sol)
-                current_sol.append(VertexPair(v, w))
-                g0_matched[v] = True
-                g1_matched[w] = True
+            bd = s.domains[bd_idx]
 
-                if len(current_sol) > len(best_sol):
-                    best_sol = [x for x in current_sol]
-                    lap = time.monotonic()
-                    time_elapsed = lap - start
+            # Select vertex v (vertex with max reward)
+            tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len)
+            v = left[bd.l + tmp_idx]
+            bd.left_len -= 1
+            left[bd.l + tmp_idx], left[bd.l + bd.left_len] = left[bd.l + bd.left_len], left[bd.l + tmp_idx]
+            rewards.update_policy_counter(False)
 
-                    if not opt.quiet and (nodes - len(best_sol) > 10 or len(best_sol) % 100 == 0):
-                        logging.info(f"Incumbent size: {len(best_sol)} \t Iterations: {iteration} \t Time: {time_elapsed}")
+            # Next iteration try to select a vertex w to pair with v
+            s2 = Step(s.domains, set(), 0, v, cur_len=len(current))
+            s2.bd = bd
+            s2.bd_idx = bd_idx
+            steps.append(s2)
+            s2.bd.right_len -= 1
+            continue
 
-                    rewards.update_policy_counter(True)
-                new_domains, total = generate_new_domains(
-                    bidomains[depth // 2],
-                    left,
-                    right,
-                    g0,
-                    g1,
-                    v,
-                    w,
-                    current_sol,
-                    g0_matched,
-                    g1_matched
-                    # opt.directed or opt.edge_labelled because always False for us
-                )
+        """ W-step """
+        if s.w_iter < s.bd.right_len + 1:
+            tmp_idx = selectW_index(right, rewards, s.v, s.bd.r, s.bd.right_len + 1, s.wselected)
+            w = right[s.bd.r + tmp_idx]
+            s.wselected.add(w)
+            right[s.bd.r + tmp_idx], right[s.bd.r + s.bd.right_len] = right[s.bd.r + s.bd.right_len], right[
+                s.bd.r + tmp_idx]
+            rewards.update_policy_counter(False)
 
-                bidomains.append(new_domains)
-                rewards.update_rewards((total, len(new_domains)), v, w)
+            if nodes%100000 == 0:
+                logging.debug(f"nodes: {nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")
 
-                depth += 1
-            else:
-                bidomains[depth // 2][current_bidomain[depth // 2]].right_len += 1
-                depth -= 1
+            cur_len = len(current)
+            result = generate_new_domains(s.domains, current, g0_matched, g1_matched, left, right, g0, g1, s.v, w)
+            rewards.update_rewards(result, s.v, w)
 
-                if bidomains[depth // 2][current_bidomain[depth // 2]].left_len <= 0:
-                    bidomains[depth // 2][-1], bidomains[depth // 2][current_bidomain[depth // 2]] = bidomains[depth // 2][current_bidomain[depth // 2]], bidomains[depth // 2][-1]
-                    bidomains[depth // 2] =  bidomains[depth // 2][:-1]
+            s.w_iter += 1
+            s.cur_len = cur_len
 
-    return best_sol
+            # next iterations select a new vertex v
+            steps.append(Step(result[0], s.wselected, -1, cur_len=len(current)))
+            continue
 
+        """ Backtrack """
+        # If we have tried all vertices w, we are done with this vertex v and this bidomain
+        s.bd.right_len += 1
+        if s.bd.left_len == 0:
+            s.domains[s.bd_idx] = s.domains[-1]
+            s.domains.pop()
+        s = steps.pop()
+        steps[-1].cur_len = s.cur_len
 
-def solve_first_graph(nodes: List[int], bd: Bidomain, rewards: DoubleQRewards) -> int:
-    end = bd.l + bd.left_len
-    idx = selectV_index(nodes, rewards, bd.l, bd.left_len)
-    # put vertex at the back
-    if idx != np.inf:
-        nodes[bd.l + idx], nodes[end - 1] = nodes[end - 1], nodes[bd.l + idx]
-    bd.left_len -= 1
-    rewards.update_policy_counter(False)
-    return nodes[end - 1]
-
-
-def solve_second_graph(
-    nodes: List[int],
-    bd: Bidomain,
-    wselected: List[bool],
-    rewards: DoubleQRewards,
-    v: int,
-) -> int:
-    idx = selectW_index(nodes, rewards, v, bd.r, bd.right_len, wselected)
-    if idx != np.inf:
-        nodes[bd.r + idx], nodes[bd.r + bd.right_len - 1] = nodes[bd.r + bd.right_len - 1], nodes[bd.r + idx]
-    bd.right_len -= 1
-    wselected[nodes[bd.r + bd.right_len]] = True
-    rewards.update_policy_counter(False)
-    return nodes[bd.r + bd.right_len]
+    return incumbent
 
 
 def calc_bound(bidomains: List[Bidomain]) -> int:
@@ -209,10 +170,10 @@ def calc_bound(bidomains: List[Bidomain]) -> int:
 
 
 def select_bidomain(
-    domains: List[Bidomain],
-    left: List[int],
-    rewards: DoubleQRewards,
-    current_matching_size: int,
+        domains: List[Bidomain],
+        left: List[int],
+        rewards: DoubleQRewards,
+        current_matching_size: int,
 ):
     # Select the bidomain with the smallest max(leftsize, rightsize), breaking
     # ties on the smallest vertex index in the left set
@@ -221,14 +182,12 @@ def select_bidomain(
     best = -1
     for i in range(len(domains)):
         bd = domains[i]
-        if current_matching_size > 0 and not bd.is_adjacent:
-            continue
         len_bd = max(bd.left_len, bd.right_len)
         if len_bd < min_size:
             min_size = len_bd
             min_tie_breaker = left[
                 bd.l + selectV_index(left, rewards, bd.l, bd.left_len)
-            ]
+                ]
             best = i
         elif len_bd == min_size:
             tie_breaker = left[bd.l + selectV_index(left, rewards, bd.l, bd.left_len)]
@@ -257,12 +216,12 @@ def selectV_index(arr: List[int], rewards: DoubleQRewards, start_idx: int, lengt
 
 
 def selectW_index(
-    arr: List[int],
-    rewards: DoubleQRewards,
-    v: int,
-    start_idx: int,
-    length: int,
-    wselected: List[int],
+        arr: List[int],
+        rewards: DoubleQRewards,
+        v: int,
+        start_idx: int,
+        length: int,
+        wselected: Set[int],
 ):
     idx = -1
     max_g = -1
@@ -270,7 +229,7 @@ def selectW_index(
 
     for i in range(length):
         vtx = arr[start_idx + i]
-        if wselected[vtx] == 0:
+        if vtx not in wselected:
             pair_reward = rewards.get_pair_reward(v, vtx, False)
 
             # Check if this is the best pair so far
@@ -287,23 +246,26 @@ def selectW_index(
 
 
 def generate_new_domains(
-    bidomains: List[Bidomain],
-    left: List[int],
-    right: List[int],
-    g0: Graph,
-    g1: Graph,
-    v: int,
-    w: int,
-    current_sol: List[VertexPair],
-    g0_matched: List[bool],
-    g1_matched: List[bool]
+        bidomains: List[Bidomain],
+        current_sol: List[VertexPair],
+        g0_matched: List[bool],
+        g1_matched: List[bool],
+        left: List[int],
+        right: List[int],
+        g0: Graph,
+        g1: Graph,
+        v: int,
+        w: int
 ) -> Tuple[List[Bidomain], int]:
+    current_sol.append(VertexPair(v, w))
+    g0_matched[v] = True
+    g1_matched[w] = True
     new_d: List[Bidomain] = []
     temp, total = 0, 0
-    
+
     leaves_match_size = 0
     i = j = 0
-    
+
     while i < len(g0.leaves[v]) and j < len(g1.leaves[w]):
         if g0.leaves[v][i].first < g1.leaves[w][j].first:
             i += 1
@@ -315,32 +277,32 @@ def generate_new_domains(
             p = q = 0
             while p < len(leaf0) and q < len(leaf1):
                 if g0_matched[leaf0[p]]:
-                    p +=1
+                    p += 1
                 elif g1_matched[leaf1[q]]:
                     q += 1
                 else:
                     v_leaf = leaf0[p]
                     w_leaf = leaf1[q]
-                    p +=1 
+                    p += 1
                     q += 1
                     current_sol.append(VertexPair(v_leaf, w_leaf))
                     g0_matched[v_leaf] = True
                     g1_matched[w_leaf] = True
-                    leaves_match_size += 1    
+                    leaves_match_size += 1
             i += 1
             j += 1
 
     for old_bd in bidomains:
         l = old_bd.l
         r = old_bd.r
-        
+
         if leaves_match_size > 0 and not old_bd.is_adjacent:
             unmatched_left_len = remove_matched_vertex(left, l, old_bd.left_len, g0_matched)
             unmatched_right_len = remove_matched_vertex(right, r, old_bd.right_len, g1_matched)
         else:
             unmatched_left_len = old_bd.left_len
             unmatched_right_len = old_bd.right_len
-        
+
         left_len = partition(left, l, unmatched_left_len, g0, v)
         right_len = partition(right, r, unmatched_right_len, g1, w)
         left_len_noedge = unmatched_left_len - left_len
@@ -348,9 +310,9 @@ def generate_new_domains(
 
         # compute reward
         temp = (
-            min(old_bd.left_len, old_bd.right_len)
-            - min(left_len, right_len)
-            - min(left_len_noedge, right_len_noedge)
+                min(old_bd.left_len, old_bd.right_len)
+                - min(left_len, right_len)
+                - min(left_len_noedge, right_len_noedge)
         )
         total += temp
 
@@ -370,15 +332,17 @@ def generate_new_domains(
 
     return new_d, total
 
+
 def remove_matched_vertex(arr: List[int], start: int, len: int, matched: List[bool]) -> int:
     p = 0
-    
+
     for i in range(len):
         if not matched[arr[start + i]]:
             arr[start + i], arr[start + p] = arr[start + p], arr[start + i]
             p += 1
-    
+
     return p
+
 
 def partition(all_vv: List[int], start: int, len: int, g: Graph, index: int):
     i = j = 0

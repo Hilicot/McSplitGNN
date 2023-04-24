@@ -83,8 +83,9 @@ class DoubleQRewards:
                     raise Exception(f"Invalid reward switch policy {switch_policy}")
 
     def update_rewards(self, new_domains_result: Tuple[int, int], v: int, w: int) -> None:
-        reward, dal_reward = new_domains_result
-        
+        new_domains, reward = new_domains_result
+        dal_reward = len(new_domains)
+
         # update rewards
         if reward > 0:
 

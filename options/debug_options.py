@@ -15,6 +15,7 @@ class DebugOptionsObject:
         self.log_level = 'debug'
         self.log_file = None
         self.log_stdout = True
+        self.quiet = True
 
         self.phase = 'train'
         self.device = 'cpu'
@@ -22,6 +23,7 @@ class DebugOptionsObject:
         self.timeout = 10
         # self.max_iter = 10
         self.plot_graphs_on_loading = False  # Plot graphs when they are loaded into the model. (For debugging purposes)
+
 
 class DebugOptions(BaseOptions):
     def __init__(self):

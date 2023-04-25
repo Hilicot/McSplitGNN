@@ -68,26 +68,29 @@ def do_swap_graphs(g0, g1):
 def check_sol(g0: Graph, g1: Graph, solution: List[VertexPair]) -> bool:
     used_left = [False] * g0.n
     used_right = [False] * g1.n
-
-    for pair in solution:
-        print(f"({pair.v}, {pair.w})")
     
     for i in range(len(solution)):
         pair = solution[i]
         
-        if used_left[pair.v] or used_right[pair.w]:
+        if used_left[pair.v]:
+            logging.debug(f'Vertex v = {pair.v} already used')
+            return False
+        elif used_right[pair.w]:
+            logging.debug(f'Vertex w = {pair.w} already used')
             return False
         
         used_left[pair.v] = True
         used_right[pair.w] = True
         
         if g0.adjlist[pair.v].label != g1.adjlist[pair.w].label:
+            logging.debug(f'Pair {pair!r} has not matching labels ({g0.adjlist[pair.v].label} != {g1.adjlist[pair.w].label})')
             return False
         
         for j in range(i + 1, len(solution)):
             new_pair = solution[j]
         
             if g0.get(pair.v, new_pair.v) != g1.get(pair.w, new_pair.w):
+                logging.debug(f'Solution is not induced because edge ({pair.v} -> {new_pair.v} = {g0.get(pair.v, new_pair.v)}) != edge ({pair.w} -> {new_pair.w} = {g1.get(pair.w, new_pair.w)})')
                 return False
     
     return True

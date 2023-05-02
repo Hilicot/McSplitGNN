@@ -68,9 +68,6 @@ def do_swap_graphs(g0, g1):
 def check_sol(g0: Graph, g1: Graph, solution: List[VertexPair]) -> bool:
     used_left = [False] * g0.n
     used_right = [False] * g1.n
-
-    for pair in solution:
-        print(f"({pair.v}, {pair.w})")
     
     for i in range(len(solution)):
         pair = solution[i]

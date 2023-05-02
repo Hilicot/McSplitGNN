@@ -94,7 +94,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
                 incumbent.clear()
                 incumbent.extend(current)
                 if not opt.quiet:
-                    print(f"Incumbent size: {len(incumbent)}")
+                    logging.info(f"Incumbent size: {len(incumbent)}")
 
                 rewards.update_policy_counter(True)
 
@@ -102,7 +102,6 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             bound = len(current) + calc_bound(s.domains)
             if bound <= len(incumbent) or bound < matching_size_goal:
                 steps.pop()
-                # print(f"nodes: {nodes} pruned")
                 continue
 
             # Select a bidomain based on the heuristic
@@ -136,7 +135,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
                 s.bd.r + tmp_idx]
             rewards.update_policy_counter(False)
 
-            if nodes%100000 == 0:
+            if nodes%1 == 0 and nodes > 6700:
                 logging.debug(f"nodes: {nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")
 
             cur_len = len(current)
@@ -157,6 +156,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             s.domains[s.bd_idx] = s.domains[-1]
             s.domains.pop()
         s = steps.pop()
+        nodes -= 1
         steps[-1].cur_len = s.cur_len
 
     return incumbent

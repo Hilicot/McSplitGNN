@@ -103,7 +103,7 @@ class Options:
 
         # static options
         self.swap_policy = self.c.McSPLIT_SD
-        self.sort_heuristic = SortDegree()
+        self.sort_heuristic = SortPagerank()
         self.reward_policy = RewardPolicy(self.c)
         self.mcs_method = self.c.RL_DAL
 

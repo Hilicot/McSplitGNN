@@ -1,4 +1,5 @@
 from __future__ import annotations
+from io import BufferedReader
 from typing import List
 import os
 import logging
@@ -94,7 +95,7 @@ def induced_subgraph(g: Graph, g_deg) -> Graph:
     return subg
 
 
-def read_word(fp):
+def read_word(fp: BufferedReader):
     a = fp.read(2)
     if len(a) != 2:
         raise Exception("Error reading file.")
@@ -104,7 +105,7 @@ def read_word(fp):
 def readBinaryGraph(filename: str) -> Graph:
     with open(filename, "rb") as f:
         nvertices = read_word(f)
-        logging.debug("Nvertices:", nvertices)
+        logging.debug(f"nvertices: {nvertices}")
         g = Graph(nvertices)
 
         # Labelling scheme: see
@@ -117,10 +118,16 @@ def readBinaryGraph(filename: str) -> Graph:
             p *= 2
             k1 = k2
             k2 += 1
+        
+        # Necesary to skip labels
+        for _ in range(nvertices):
+            read_word(f)
+        
         for i in range(nvertices):
             len = read_word(f)
-            for j in range(len):
-                target = read_word(f)
+            for _ in range(len):
+                # Skip labels
+                target, _ = read_word(f), read_word(f)
                 g.add_edge(i, target)
     return g
 
@@ -130,7 +137,7 @@ def readAsciiGraph(filename: str) -> Graph:
         header = f.readline().split()
         nvertices, nedges = int(header[0]), int(header[1])
 
-        logging.debug("nvertices: %d", nvertices)
+        logging.debug(f"nvertices: {nvertices}")
         g = Graph(nvertices)
 
         for _ in range(nedges):

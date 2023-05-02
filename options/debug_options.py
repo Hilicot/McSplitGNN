@@ -1,4 +1,3 @@
-import os
 from .base_options import BaseOptions
 import copy
 
@@ -20,8 +19,8 @@ class DebugOptionsObject:
         self.phase = 'train'
         self.device = 'cpu'
         self.dataset_format = "ascii"
-        self.timeout = 0
-        self.max_iter = 6900
+        self.timeout = 10
+        self.max_iter = 0
         self.plot_graphs_on_loading = False  # Plot graphs when they are loaded into the model. (For debugging purposes)
 
 

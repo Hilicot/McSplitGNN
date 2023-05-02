@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Tuple
+from typing import List, Set, Tuple
 import time
 import numpy as np
 import logging
@@ -135,7 +135,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
                 s.bd.r + tmp_idx]
             rewards.update_policy_counter(False)
 
-            if nodes%1 == 0 and nodes > 6700:
+            if nodes%10000 == 0:
                 logging.debug(f"nodes: {nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")
 
             cur_len = len(current)
@@ -285,6 +285,7 @@ def generate_new_domains(
                     w_leaf = leaf1[q]
                     p += 1
                     q += 1
+                    logging.debug(f'Found a leaf union ({v_leaf} -> {w_leaf})')
                     current_sol.append(VertexPair(v_leaf, w_leaf))
                     g0_matched[v_leaf] = True
                     g1_matched[w_leaf] = True

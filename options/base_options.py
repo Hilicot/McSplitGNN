@@ -17,7 +17,7 @@ class BaseOptions:
 
     def initialize(self):
         dataset_list = [
-            ["mcs-instances/mcs10/bvg/b03m/mcs10_b03m_s100.A00", "mcs-instances/mcs10/bvg/b03m/mcs10_b03m_s100.B00"]
+            ["gl_search/pair_5_graphs_0_1/g1.txt", "gl_search/pair_5_graphs_0_1/g2.txt"]
         ]
 
         self.parser.add_argument(

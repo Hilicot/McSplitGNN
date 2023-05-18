@@ -345,10 +345,10 @@ def remove_matched_vertex(arr: List[int], start: int, len: int, matched: List[bo
     return p
 
 
-def partition(all_vv: List[int], start: int, len: int, g: Graph, index: int):
+def partition(all_vv: List[int], start: int, length: int, g: Graph, index: int):
     i = j = 0
 
-    while j < len:
+    while j < length:
         if g.get(index, all_vv[start + j]):
             all_vv[start + i], all_vv[start + j] = all_vv[start + j], all_vv[start + i]
             i += 1

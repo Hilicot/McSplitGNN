@@ -16,7 +16,6 @@ def debug():
     folder = os.path.realpath(opt.data_folder)
     graph_manager = GraphManager()
     v_dataset = VDataset(folder, graph_manager)
-    w_dataset = WDataset(folder, graph_manager)
 
     #### V dataset
     # split in test+train

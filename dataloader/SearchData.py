@@ -8,22 +8,24 @@ from dataloader.GraphManager import GraphPair
 
 class SearchData:
     is_valid: bool
-    left_bidomain: np.ndarray[int]
-    vertex_scores: np.ndarray[int]
     graph_pair: GraphPair
     v_vertex_mapping: Dict[int, int] = {}
+    data: Data
 
     def __init__(self, f, graph_pair: GraphPair):
-        self.is_valid = self.read_binary_data(f)[0] > 0
-        self.graph_pair = graph_pair
+        count, binary_data = self.read_binary_data(f)
+        self.is_valid = count > 0
+        if self.is_valid:
+            self.graph_pair = graph_pair
+            self.convert_to_gnn_data(binary_data)
 
     def __str__(self):
-        return f"SearchData: {self.left_bidomain}, {self.vertex_scores}"
+        return f"SearchData: {self.data}"
 
-    def read_binary_data(self, f) -> (int, int):
+    def read_binary_data(self, f) -> (int, (np.ndarray, np.ndarray)):
         n_bytes = f.read(4)
         if not n_bytes:
-            return -1, -1
+            return -1, ()
         n = struct.unpack("i", n_bytes)[0]
         m_bytes = f.read(4)
         m = struct.unpack("i", m_bytes)[0]
@@ -31,12 +33,12 @@ class SearchData:
         vertex_scores_bytes = f.read(m*4)
         _left_bidomain = struct.unpack(f"{n}i", left_bidomain_bytes)
         _vertex_scores = struct.unpack(f"{m}i", vertex_scores_bytes)
-        self.left_bidomain = np.array(_left_bidomain, dtype=np.int)
-        self.vertex_scores = np.array(_vertex_scores, dtype=np.int)
-        return n, m
+        return n, (np.array(_left_bidomain, dtype=np.int), np.array(_vertex_scores, dtype=np.int))
 
-    def convert_to_gnn_data(self) -> Data:
-        return self.bidomain_to_gnn_data(self.graph_pair.g0, self.left_bidomain, self.v_vertex_mapping)
+    def convert_to_gnn_data(self, binary_data) -> Data:
+        left_bidomain, vertex_scores = binary_data
+        self.data = self.bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain, self.v_vertex_mapping)
+        return self.data
 
     @staticmethod
     def bidomain_to_gnn_data(g: Graph, bidomain: np.ndarray[int], mapping: Dict[int, int]) -> Data:
@@ -67,19 +69,20 @@ class SearchDataW(SearchData):
     def __str__(self):
         return f"SearchDataW: {self.left_bidomain}, {self.vertex_scores}, {self.v}, {self.right_bidomain}, {self.bounds}"
 
-    def read_binary_data(self, f) -> (int, int):
-        n, m = super().read_binary_data(f)
-        if m < 0:
-            return m, m
+    def read_binary_data(self, f) -> (int, (np.ndarray, np.ndarray, int, np.ndarray, np.ndarray)):
+        count, (left_bidomain, vertex_scores) = super().read_binary_data(f)
+        m = len(vertex_scores)
+        if count < 0 or m <= 0:
+            return -1, ()
         v_bytes = f.read(4)
-        self.v = struct.unpack("i", v_bytes)[0]
+        v = struct.unpack("i", v_bytes)[0]
         right_bidomain_bytes = f.read(m*4)
         bounds_bytes = f.read(m*4)
         _right_bidomain = struct.unpack(f"{m}i", right_bidomain_bytes)
         _bounds = struct.unpack(f"{m}i", bounds_bytes)
-        self.right_bidomain = np.array(_right_bidomain, dtype=np.int)
-        self.bounds = np.array(_bounds, dtype=np.int)
-        return m, m
+        right_bidomain = np.array(_right_bidomain, dtype=np.int)
+        bounds = np.array(_bounds, dtype=np.int)
+        return m, (left_bidomain, vertex_scores, v, right_bidomain, bounds)
 
-    def convert_to_gnn_data(self) -> Data:
+    def convert_to_gnn_data(self, binary_data) -> Data:
         raise NotImplementedError("SearchDataW does not support convert_to_gnn_data yet")

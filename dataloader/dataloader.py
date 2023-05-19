@@ -27,8 +27,7 @@ class VDataset(Dataset):
 
     def __getitem__(self, index) -> Data:
         search_data_item = self.search_data[index]
-        data = search_data_item.convert_to_gnn_data()
-        return data
+        return search_data_item.data
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):
         path = os.path.join(folder, "v_data")

@@ -22,7 +22,7 @@ class Graph:
     n: int
     e: int
     adjlist: List[Node]
-    leaves: List[Node]
+    leaves: List[list]
 
     def __init__(self, n):
         self.n = n

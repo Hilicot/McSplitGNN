@@ -83,6 +83,13 @@ class BaseOptions:
             help="Specify whether to log to stdout.",
         )
 
+        self.parser.add_argument(
+            "--train_ratio",
+            type=int,
+            default=80,
+            help="Specify the percentage of the dataset to use for training.",
+        )
+
     def parse(self):
         if not self.initialized:
             self.initialize()

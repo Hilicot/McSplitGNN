@@ -4,7 +4,7 @@ import struct
 from torch_geometric.data import Data
 import torch
 from dataloader.GraphManager import GraphPair
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from src.graph import Graph
 
@@ -39,11 +39,11 @@ class SearchData:
 
     def convert_to_gnn_data(self, binary_data) -> Data:
         left_bidomain, vertex_scores = binary_data
-        self.data = self.bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain, self.v_vertex_mapping)
+        self.data = self.bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain, self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution])
         return self.data
 
     @staticmethod
-    def bidomain_to_gnn_data(g: Graph, bidomain: np.ndarray[int], mapping: Dict[int, int]) -> Data:
+    def bidomain_to_gnn_data(g: Graph, bidomain: np.ndarray[int], mapping: Dict[int, int], solution_vertices: List) -> Data:
         """Convert bidomain to a graph in Data format. Docs: https://pytorch-geometric.readthedocs.io/en/latest/get_started/introduction.html#data-handling-of-graphs"""
         edges = []
         mapping = {vtx: i for i, vtx in enumerate(bidomain)}
@@ -58,7 +58,7 @@ class SearchData:
         # node features: each node has 1 single feature equal to 1 (we only care about the size of the graph)
         node_features = torch.ones(len(bidomain), dtype=torch.float32)
         # labels:
-        labels = None  # TODO define labels (attenzione che i vertici sono mappati su label diverse)
+        labels = torch.tensor([1 if vtx in solution_vertices else 0 for vtx in bidomain], dtype=torch.int8).t().contiguous()
 
         return Data(x=node_features, edge_index=adjacency_matrix, y=labels)
 

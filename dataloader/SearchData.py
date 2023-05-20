@@ -4,7 +4,9 @@ import struct
 from torch_geometric.data import Data
 import torch
 from dataloader.GraphManager import GraphPair
+from typing import Dict, Tuple
 
+from src.graph import Graph
 
 class SearchData:
     is_valid: bool
@@ -22,7 +24,7 @@ class SearchData:
     def __str__(self):
         return f"SearchData: {self.data}"
 
-    def read_binary_data(self, f) -> (int, (np.ndarray, np.ndarray)):
+    def read_binary_data(self, f) -> Tuple[int, Tuple[np.ndarray, np.ndarray]]:
         n_bytes = f.read(4)
         if not n_bytes:
             return -1, ()
@@ -33,7 +35,7 @@ class SearchData:
         vertex_scores_bytes = f.read(m*4)
         _left_bidomain = struct.unpack(f"{n}i", left_bidomain_bytes)
         _vertex_scores = struct.unpack(f"{m}i", vertex_scores_bytes)
-        return n, (np.array(_left_bidomain, dtype=np.int), np.array(_vertex_scores, dtype=np.int))
+        return n, (np.array(_left_bidomain, dtype=int), np.array(_vertex_scores, dtype=int))
 
     def convert_to_gnn_data(self, binary_data) -> Data:
         left_bidomain, vertex_scores = binary_data
@@ -69,7 +71,7 @@ class SearchDataW(SearchData):
     def __str__(self):
         return f"SearchDataW: {self.left_bidomain}, {self.vertex_scores}, {self.v}, {self.right_bidomain}, {self.bounds}"
 
-    def read_binary_data(self, f) -> (int, (np.ndarray, np.ndarray, int, np.ndarray, np.ndarray)):
+    def read_binary_data(self, f) -> Tuple[int, Tuple[np.ndarray, np.ndarray, int, np.ndarray, np.ndarray]]:
         count, (left_bidomain, vertex_scores) = super().read_binary_data(f)
         m = len(vertex_scores)
         if count < 0 or m <= 0:

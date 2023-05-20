@@ -41,17 +41,17 @@ class Graph:
         deg = [len(self.adjlist[i].adjNodes) for i in range(self.n)]
 
         for u in range(self.n):
-            for v in range(len(self.adjlist[u].adjNodes)):
-                if deg[v] == 1:
-                    labels = (1, self.adjlist[v].label)
+            for v in self.adjlist[u].adjNodes:
+                if deg[v.id] == 1:
+                    labels = (1, self.adjlist[v.id].label)
                     pos = -1
                     for k in range(len(self.leaves[u])):
                         if self.leaves[u][k][0] == labels:
                             pos = k
                             break
-                        if k == len(self.leaves[u]) - 1:
+                        if k == len(self.leaves[u]):
                             self.leaves[u].append((labels, []))
-                    self.leaves[u][pos][1].append(v)
+                    self.leaves[u][pos][1].append(v.id)
 
             self.leaves[u].sort()
 

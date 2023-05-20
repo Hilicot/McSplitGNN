@@ -42,7 +42,7 @@ class BaseOptions:
         )
         self.parser.add_argument(
             "--dataset_list",
-            type=list,
+            nargs="*",
             default=dataset_list,
             help="list of datasets to train on",
         )

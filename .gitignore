@@ -1,3 +1,5 @@
 datasets_test/*
+dataset/*
 .venv/
 **/__pycache__/
+.vscode/

@@ -4,13 +4,15 @@ from torch.utils.data import Dataset
 from dataloader.GraphManager import GraphManager, GraphPair
 from dataloader.SearchData import SearchData, SearchDataW
 import logging
+from typing import List
+from torch_geometric.data import Data
 
 
 class VDataset(Dataset):
     graph_manager: GraphManager
     search_data: List[SearchData]
 
-    def __init__(self, dataset_folder: string, _graph_manager: GraphManager):
+    def __init__(self, dataset_folder: str, _graph_manager: GraphManager):
         super().__init__()
         self.graph_manager = _graph_manager
         self.search_data = []
@@ -41,7 +43,7 @@ class VDataset(Dataset):
 
 
 class WDataset(VDataset):
-    def __init__(self, dataset_folder: string, _graph_manager: GraphManager):
+    def __init__(self, dataset_folder: str, _graph_manager: GraphManager):
         super().__init__(dataset_folder, _graph_manager)
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):

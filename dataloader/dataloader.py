@@ -6,6 +6,7 @@ from dataloader.SearchData import SearchData, SearchDataW
 import logging
 from typing import List
 from torch_geometric.data import Data
+from options import opt
 
 
 class VDataset(Dataset):
@@ -39,7 +40,8 @@ class VDataset(Dataset):
                 data = SearchData(f, graph_pair)
                 if not data.is_valid:
                     break
-                self.search_data.append(data)
+                if not data.skip:
+                    self.search_data.append(data)
 
 
 class WDataset(VDataset):

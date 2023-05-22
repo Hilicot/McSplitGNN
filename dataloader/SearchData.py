@@ -5,7 +5,7 @@ from torch_geometric.data import Data
 import torch
 from dataloader.GraphManager import GraphPair
 from typing import Dict, List, Tuple
-
+from options import opt
 from src.graph import Graph
 
 class SearchData:
@@ -13,6 +13,7 @@ class SearchData:
     graph_pair: GraphPair
     v_vertex_mapping: Dict[int, int] = {}
     data: Data
+    skip = False
 
     def __init__(self, f, graph_pair: GraphPair):
         count, binary_data = self.read_binary_data(f)
@@ -40,7 +41,8 @@ class SearchData:
     def convert_to_gnn_data(self, binary_data) -> Data:
         left_bidomain, vertex_scores = binary_data
         self.data = self.bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain, self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution])
-        return self.data
+        self.skip = len(self.data.y) == 0 or len(self.data.edge_index) == 0  # don't include bidomains with disconnected vertices (GNN cannot infer anything)
+        return self.data.to(opt.device)
 
     @staticmethod
     def bidomain_to_gnn_data(g: Graph, bidomain: np.ndarray[int], mapping: Dict[int, int], solution_vertices: List) -> Data:
@@ -56,9 +58,9 @@ class SearchData:
         # adjacency matrix: sparse tensor in COO format. each edge is represented twice (both directions)
         adjacency_matrix = torch.tensor(edges, dtype=torch.long).t().contiguous()
         # node features: each node has 1 single feature equal to 1 (we only care about the size of the graph)
-        node_features = torch.ones(len(bidomain), dtype=torch.float32)
+        node_features = torch.ones(len(bidomain), dtype=torch.float32).unsqueeze(1) # add channel dim
         # labels:
-        labels = torch.tensor([1 if vtx in solution_vertices else 0 for vtx in bidomain], dtype=torch.int8).t().contiguous()
+        labels = torch.tensor([1 if vtx in solution_vertices else 0 for vtx in bidomain], dtype=torch.float).t().contiguous().unsqueeze(1)
 
         return Data(x=node_features, edge_index=adjacency_matrix, y=labels)
 

@@ -44,10 +44,9 @@ def debug():
         total_loss = 0
 
         for data in v_train_dataloader:
-            data = data.to(opt.device)
+            data = data
 
-            # TODO still to validate
-            """# Forward pass
+            # Forward pass
             optimizer.zero_grad()
             output = model(data)
 
@@ -58,7 +57,7 @@ def debug():
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()"""
+            total_loss += loss.item()
 
         avg_loss = total_loss/len(v_train_dataloader)
         logging.info("Epoch {}: Loss {}".format(epoch, avg_loss))

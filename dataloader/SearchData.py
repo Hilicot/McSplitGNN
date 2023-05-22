@@ -40,15 +40,16 @@ class SearchData:
 
     def convert_to_gnn_data(self, binary_data) -> Data:
         left_bidomain, vertex_scores = binary_data
-        self.data = self.bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain, self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution])
+        self.data = self.bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain, self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution], vertex_scores)
         self.skip = len(self.data.y) == 0 or len(self.data.edge_index) == 0  # don't include bidomains with disconnected vertices (GNN cannot infer anything)
         return self.data.to(opt.device)
 
     @staticmethod
-    def bidomain_to_gnn_data(g: Graph, bidomain: np.ndarray[int], mapping: Dict[int, int], solution_vertices: List) -> Data:
+    def bidomain_to_gnn_data(g: Graph, bidomain: np.ndarray[int], mapping: Dict[int, int], solution_vertices: List, vertex_scores: List) -> Data:
         """Convert bidomain to a graph in Data format. Docs: https://pytorch-geometric.readthedocs.io/en/latest/get_started/introduction.html#data-handling-of-graphs"""
         edges = []
-        mapping = {vtx: i for i, vtx in enumerate(bidomain)}
+        for i, vtx in enumerate(bidomain):
+            mapping[vtx] = i
 
         for i, vtx in enumerate(bidomain):
             for j in g.adjlist[vtx].adjNodes:
@@ -60,8 +61,8 @@ class SearchData:
         # node features: each node has 1 single feature equal to 1 (we only care about the size of the graph)
         node_features = torch.ones(len(bidomain), dtype=torch.float32).unsqueeze(1) # add channel dim
         # labels:
-        labels = torch.tensor([1 if vtx in solution_vertices else 0 for vtx in bidomain], dtype=torch.float).t().contiguous().unsqueeze(1)
-
+        labels = torch.tensor([abs(vertex_scores[mapping[vtx]]) if vtx in solution_vertices else 0 for vtx in bidomain], dtype=torch.float).t().contiguous().unsqueeze(1)
+        labels = torch.functional.F.softmax(labels, dim=0)
         return Data(x=node_features, edge_index=adjacency_matrix, y=labels)
 
 

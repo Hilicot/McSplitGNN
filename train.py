@@ -133,6 +133,7 @@ def plot_losses(phase, losses, accuracy=None):
     if opt.log_folder:
         plt.savefig(os.path.join(opt.log_folder, f"{opt.timestamp}_{phase}_loss.png"))
     plt.show()
+    plt.clf()
 
     if accuracy is not None:
         # Plot the accuracy graph
@@ -144,6 +145,7 @@ def plot_losses(phase, losses, accuracy=None):
         if opt.log_folder:
             plt.savefig(os.path.join(opt.log_folder, f"{opt.timestamp}_{phase}_accuracy.png"))
         plt.show()
+        plt.clf()
 
 
 def check_predition(output, label):

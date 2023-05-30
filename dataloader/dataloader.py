@@ -54,14 +54,14 @@ class VDataset(Dataset):
                 if i > 100 and False:
                     logging.warning("We are not reading all the data")
                     break
-                if i%1000 == 0:
-                    logging.debug("Reading search data: " + str(i))
                 data = SearchData(f, graph_pair)
                 if not data.is_valid:
                     break
                 if not data.skip:
                     self.search_data.append(data)
-                    i += 1
+                i += 1
+                if i%1000 == 0:
+                    logging.debug("Reading search data: " + str(i))
 
         # save search data to folder as pickle
         with open(os.path.join(folder, "v_search_data.pkl"), "wb") as f:

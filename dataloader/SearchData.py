@@ -81,8 +81,8 @@ class SearchDataW(SearchData):
         bounds_bytes = f.read(m*4)
         _right_bidomain = struct.unpack(f"{m}i", right_bidomain_bytes)
         _bounds = struct.unpack(f"{m}i", bounds_bytes)
-        right_bidomain = np.array(_right_bidomain, dtype=np.int)
-        bounds = np.array(_bounds, dtype=np.int)
+        right_bidomain = np.array(_right_bidomain, dtype=int)
+        bounds = np.array(_bounds, dtype=int)
         return m, (left_bidomain, vertex_scores, v, right_bidomain, bounds)
 
     def convert_to_gnn_data(self, binary_data) -> bool:

@@ -17,7 +17,7 @@ class DebugOptionsObject:
         self.quiet = True
 
         self.phase = 'train'
-        self.device = 'cpu'
+        self.device = 'cuda'
         self.dataset_format = "ascii"
         self.timeout = 10
         self.max_iter = 0

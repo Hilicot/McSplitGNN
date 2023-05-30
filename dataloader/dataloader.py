@@ -7,6 +7,8 @@ import logging
 from typing import List
 from torch_geometric.data import Data
 from options import opt
+from typing import Tuple
+import numpy as np
 
 
 class VDataset(Dataset):
@@ -20,7 +22,7 @@ class VDataset(Dataset):
 
         # read all graph pairs
         for i, folder in enumerate(os.listdir(dataset_folder)):
-            if 0 < opt.max_train_graphs < i:
+            if 0 < opt.max_train_graphs <= i:
                 break
             logging.debug("Reading folder: " + folder)
             folder_path = os.path.join(dataset_folder, folder)
@@ -30,7 +32,7 @@ class VDataset(Dataset):
     def __len__(self):
         return len(self.search_data)
 
-    def __getitem__(self, index) -> (Data, np.ndarray):
+    def __getitem__(self, index) -> Tuple[Data, np.ndarray]:
         search_data_item = self.search_data[index]
         return search_data_item.v_data, search_data_item.labels
 
@@ -55,7 +57,7 @@ class WDataset(VDataset):
     def __init__(self, dataset_folder: str, _graph_manager: GraphManager):
         super().__init__(dataset_folder, _graph_manager)
 
-    def __getitem__(self, item) -> (Data, Data, np.ndarray):
+    def __getitem__(self, item) -> Tuple[Data, Data, np.ndarray]:
         search_data_item = self.search_data[item]
         return search_data_item.w_data, search_data_item.labels
 

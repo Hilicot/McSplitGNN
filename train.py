@@ -83,10 +83,13 @@ def train_model(data_type, dataset_t, model_t, graph_manager):
     # save model
     if opt.save_model:
         logging.debug("Saving model")
+        folder = os.path.join(os.path.realpath(opt.model_folder), f"graphs_{opt.max_train_graphs}_epochs_{opt.epochs}")
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         if data_type == "V":
-            torch.save(model.state_dict(), os.path.join(opt.model_folder, "VGNN.pt"))
+            torch.save(model.state_dict(), os.path.join(folder, "VGNN.pt"))
         elif data_type == "W":
-            torch.save(model.state_dict(), os.path.join(opt.model_folder, "WGNN.pt"))
+            torch.save(model.state_dict(), os.path.join(folder, "WGNN.pt"))
 
 
 def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[float, float]:

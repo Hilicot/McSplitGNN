@@ -1,15 +1,17 @@
 from __future__ import annotations
-from src.graph import Graph, readAsciiGraph
+from src.graph import Graph, readAsciiGraph, readBinaryGraph
 import os
 from typing import Dict, Tuple
 import numpy as np
+from options import opt
+import logging
 
 
 class GraphManager:
-    graph_pairs: Dict[str, Tuple[Graph, Graph]]
+    graph_pairs: Dict[str, GraphPair]
 
     def __init__(self):
-        self.graph_pairs: Dict[GraphPair] = {}
+        self.graph_pairs = {}
 
     def read_graph_pair(self, folder: str) -> GraphPair:
         if folder in self.graph_pairs:
@@ -17,15 +19,20 @@ class GraphManager:
         
         g0_path = os.path.join(folder, "g0")
         g1_path = os.path.join(folder, "g1")
-        g0 = readAsciiGraph(g0_path)
-        g1 = readAsciiGraph(g1_path)
+        if opt.dataset_format == "binary":
+            g0 = readBinaryGraph(g0_path)
+            g1 = readBinaryGraph(g1_path)
+        else:
+            g0 = readAsciiGraph(g0_path)
+            g1 = readAsciiGraph(g1_path)
         solution = read_solution(folder)
         graph_pair = GraphPair(g0, g1, solution)
         self.graph_pairs[folder] = graph_pair
-        
+
+        logging.debug("Graph pair: " + str(folder) + " read")
         return graph_pair
 
-    def get_graph_pair(self, folder: str) -> Tuple[Graph, Graph]:
+    def get_graph_pair(self, folder: str) -> GraphPair:
         return self.graph_pairs[folder]
 
 
@@ -48,11 +55,16 @@ class GraphPair:
     g0: Graph
     g1: Graph
     solution: np.array
+    g0_heuristic: np.array
+    g1_heuristic: np.array
 
     def __init__(self, g0: Graph, g1: Graph, solution: np.array):
         self.g0 = g0
         self.g1 = g1
         self.solution = solution
+        logging.debug("Computing heuristics")
+        self.g0_heuristic = np.array(opt.sort_heuristic.sort(g0))
+        self.g1_heuristic = np.array(opt.sort_heuristic.sort(g1))
 
     def __str__(self):
         return f'g0:\n{self.g0}\ng1:\n{self.g1}\nsolution:\n{self.solution}'

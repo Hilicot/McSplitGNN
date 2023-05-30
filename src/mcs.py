@@ -1,5 +1,4 @@
-from __future__ import annotations
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Optional
 import time
 import numpy as np
 import logging
@@ -9,9 +8,11 @@ from src.vertex_pair import VertexPair
 from src.reward import DoubleQRewards
 from src.graph import Graph
 from src.bidomain import Bidomain
+from model import ModelGNN
+import random
 
 
-def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards) -> List[VertexPair]:
+def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]) -> List[VertexPair]:
     left: List[int] = []  # the buffer of vertex indices for the left partitions
     right: List[int] = []  # the buffer of vertex indices for the right partitions
     domains = []
@@ -44,7 +45,7 @@ def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards) -> List[VertexPair]:
 
     g0_matched = [False]*g0.n
     g1_matched = [False]*g1.n
-    incumbent = solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, 1)
+    incumbent = solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, 1, v_model, w_model)
 
     return incumbent
 
@@ -59,7 +60,7 @@ class Step:
         self.bd_idx = -1
 
 
-def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matching_size_goal):
+def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matching_size_goal, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
     nodes = 0
     steps = [Step(domains, set())]
     incumbent = []
@@ -112,11 +113,18 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             bd = s.domains[bd_idx]
 
             # Select vertex v (vertex with max reward)
-            tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len)
+            if opt.select_first_vertex:
+                tmp_idx = 0
+            elif opt.random_vertex_selection:
+                tmp_idx = random.randint(0, bd.left_len - 1)
+            elif opt.use_gnn_for_v:
+                tmp_idx = v_model.get_prediction(g0, left[bd.l:bd.l + bd.left_len])
+            else:
+                tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len)
+                rewards.update_policy_counter(False)
             v = left[bd.l + tmp_idx]
             bd.left_len -= 1
             left[bd.l + tmp_idx], left[bd.l + bd.left_len] = left[bd.l + bd.left_len], left[bd.l + tmp_idx]
-            rewards.update_policy_counter(False)
 
             # Next iteration try to select a vertex w to pair with v
             s2 = Step(s.domains, set(), 0, v, cur_len=len(current))
@@ -128,19 +136,28 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
 
         """ W-step """
         if s.w_iter < s.bd.right_len + 1:
-            tmp_idx = selectW_index(right, rewards, s.v, s.bd.r, s.bd.right_len + 1, s.wselected)
+            if opt.select_first_vertex:
+                tmp_idx = 0
+            elif opt.random_vertex_selection:
+                tmp_idx = random.randint(0, s.bd.right_len)
+            elif opt.use_gnn_for_w:
+                tmp_idx = w_model.get_prediction(g1, right[s.bd.r:s.bd.r + s.bd.right_len + 1])
+            else:
+                tmp_idx = selectW_index(right, rewards, s.v, s.bd.r, s.bd.right_len + 1, s.wselected)
+                rewards.update_policy_counter(False)
+
             w = right[s.bd.r + tmp_idx]
             s.wselected.add(w)
             right[s.bd.r + tmp_idx], right[s.bd.r + s.bd.right_len] = right[s.bd.r + s.bd.right_len], right[
                 s.bd.r + tmp_idx]
-            rewards.update_policy_counter(False)
 
-            if nodes%10000 == 0:
-                logging.debug(f"nodes: {nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")
+            """if nodes%10000 == 0:
+                logging.debug(f"nodes: {nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")"""
 
             cur_len = len(current)
             result = generate_new_domains(s.domains, current, g0_matched, g1_matched, left, right, g0, g1, s.v, w)
-            rewards.update_rewards(result, s.v, w)
+            if not opt.use_gnn_for_v or not opt.use_gnn_for_w:
+                rewards.update_rewards(result, s.v, w)
 
             s.w_iter += 1
             s.cur_len = cur_len
@@ -267,13 +284,13 @@ def generate_new_domains(
     i = j = 0
 
     while i < len(g0.leaves[v]) and j < len(g1.leaves[w]):
-        if g0.leaves[v][i].first < g1.leaves[w][j].first:
+        if g0.leaves[v][i][0] < g1.leaves[w][j][0]:
             i += 1
-        elif g0.leaves[v][i].first > g1.leaves[w][j].first:
+        elif g0.leaves[v][i][0] > g1.leaves[w][j][0]:
             j += 1
         else:
-            leaf0 = g0.leaves[v][i].second
-            leaf1 = g1.leaves[w][j].second
+            leaf0 = g0.leaves[v][i][1]
+            leaf1 = g1.leaves[w][j][1]
             p = q = 0
             while p < len(leaf0) and q < len(leaf1):
                 if g0_matched[leaf0[p]]:

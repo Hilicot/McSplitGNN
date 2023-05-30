@@ -19,7 +19,9 @@ class VDataset(Dataset):
         self.search_data = []
 
         # read all graph pairs
-        for folder in os.listdir(dataset_folder):
+        for i, folder in enumerate(os.listdir(dataset_folder)):
+            if 0 < opt.max_train_graphs < i:
+                break
             logging.debug("Reading folder: " + folder)
             folder_path = os.path.join(dataset_folder, folder)
             graph_pair = self.graph_manager.read_graph_pair(folder_path)
@@ -28,25 +30,34 @@ class VDataset(Dataset):
     def __len__(self):
         return len(self.search_data)
 
-    def __getitem__(self, index) -> Data:
+    def __getitem__(self, index) -> (Data, np.ndarray):
         search_data_item = self.search_data[index]
-        return search_data_item.data
+        return search_data_item.v_data, search_data_item.labels
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):
         path = os.path.join(folder, "v_data")
         with open(path, "rb") as f:
             # repeat until the end of the file
+            i = 0
             while True:
+                if i > 100 and False:
+                    logging.warning("We are not reading all the data")
+                    break
                 data = SearchData(f, graph_pair)
                 if not data.is_valid:
                     break
                 if not data.skip:
                     self.search_data.append(data)
+                    i+=1
 
 
 class WDataset(VDataset):
     def __init__(self, dataset_folder: str, _graph_manager: GraphManager):
         super().__init__(dataset_folder, _graph_manager)
+
+    def __getitem__(self, item) -> (Data, Data, np.ndarray):
+        search_data_item = self.search_data[item]
+        return search_data_item.w_data, search_data_item.labels
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):
         path = os.path.join(folder, "w_data")
@@ -56,4 +67,5 @@ class WDataset(VDataset):
                 data = SearchDataW(f, graph_pair)
                 if not data.is_valid:
                     break
-                self.search_data.append(data)
+                if not data.skip:
+                    self.search_data.append(data)

@@ -16,9 +16,7 @@ class BaseOptions:
         self.initialized = False
 
     def initialize(self):
-        dataset_list = [
-            ["gl_search/pair_5_graphs_0_1/g1.txt", "gl_search/pair_5_graphs_0_1/g2.txt"]
-        ]
+        input_graphs = ["pair_3_graphs_0_1/g0", "pair_3_graphs_0_1/g1"]
 
         self.parser.add_argument(
             "--device",
@@ -41,9 +39,9 @@ class BaseOptions:
             help="path to the folder containing the dataset files",
         )
         self.parser.add_argument(
-            "--dataset_list",
+            "--input_graphs",
             nargs="*",
-            default=dataset_list,
+            default=input_graphs,
             help="list of datasets to train on",
         )
         self.parser.add_argument(
@@ -69,7 +67,7 @@ class BaseOptions:
             help='Specify the logging level to show. Can be "debug", "info", "warning", "error" or "critical".',
         )
         self.parser.add_argument(
-            "--log_file",
+            "--log_folder",
             "-lf",
             type=str,
             default=None,
@@ -88,6 +86,28 @@ class BaseOptions:
             type=int,
             default=80,
             help="Specify the percentage of the dataset to use for training.",
+        )
+
+        self.parser.add_argument(
+            "--save_model",
+            type=bool,
+            default=False,
+            help="Specify whether to save the model.",
+        )
+
+        self.parser.add_argument(
+            "--model_folder",
+            type=str,
+            default=os.path.join("saved_models"),
+            help="Specify the folder to save the models to.",
+        )
+
+        self.parser.add_argument(
+            "--max_train_graphs",
+            "-mtg",
+            type=int,
+            default=0,
+            help="Specify the max number of graphs to load for training. 0 means no limit.",
         )
 
     def parse(self):
@@ -113,6 +133,13 @@ class Options:
         self.sort_heuristic = SortPagerank()
         self.reward_policy = RewardPolicy(self.c)
         self.mcs_method = self.c.RL_DAL
+        self.train_on_heuristic = True
+
+        # test options
+        self.select_first_vertex = False
+        self.random_vertex_selection = False
+        self.use_gnn_for_v = True
+        self.use_gnn_for_w = True
 
 
 class Constants:

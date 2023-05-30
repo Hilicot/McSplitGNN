@@ -1,5 +1,6 @@
 import os.path
 
+from typing import Tuple
 from options import opt
 from src.mcsplit import mcsplit
 import logging
@@ -7,62 +8,144 @@ from dataloader.dataloader import *
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from model.VGNN import VGNN
+from model.WGNN import WGNN
 from torch.optim import Adam
-from torch.nn import MSELoss
+from torch.nn import BCELoss, MSELoss
+import torch
+import numpy as np
+
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
+import matplotlib.pyplot as plt
+from datetime import datetime
+
 
 def debug():
-    logging.info(opt)
+    data_types = [
+        "V",
+        "W"
+    ]
 
-    folder = os.path.realpath(opt.data_folder)
     graph_manager = GraphManager()
-    v_dataset = VDataset(folder, graph_manager)
 
-    #### V dataset
-    # split in test+train
-    train_size = int(opt.train_ratio/100 * len(v_dataset))
-    test_size = len(v_dataset) - train_size
-    v_train_dataset, v_test_dataset = random_split(v_dataset, [train_size, test_size])
-    
-    # get dataloader
-    v_train_dataloader = DataLoader(v_train_dataset, batch_size=opt.batch_size, shuffle=True)
-    v_test_dataloader = DataLoader(v_test_dataset, batch_size=opt.batch_size, shuffle=True)
+    if "V" in data_types:
+        train_model("V", VDataset, VGNN, graph_manager)
+    if "W" in data_types:
+        train_model("W", WDataset, VGNN, graph_manager)
+
+    # mcsplit()
+
+
+def train_model(data_type, dataset_t, model_t, graph_manager):
+    logging.info("Training {}".format(data_type))
+
+    # init dataset
+    folder = os.path.realpath(opt.data_folder)
+
+    dataset = dataset_t(folder, graph_manager)
+    train_size = int(opt.train_ratio/100*len(dataset))
+    test_size = len(dataset) - train_size
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=True)
 
     # init model
-    # TODO define dims
-    logging.warning("TODO properly define dims")
-    input_dim = 1
-    hidden_dim = 16
-    output_dim = 1
-    model = VGNN(input_dim, hidden_dim, output_dim)
-    optimizer = Adam(model.parameters(), lr=0.01)
     criterion = MSELoss()
+    model = model_t()
+    optimizer = Adam(model.parameters(), lr=0.005)
 
-    # Training loop
+    # train model
     num_epochs = 10
+    train_losses = []
+    train_acc = []
+    test_losses = []
+    test_acc = []
     for epoch in range(num_epochs):
         model.train()
-        total_loss = 0
+        avg_train_loss, avg_train_acc = run_epoch(True, train_dataloader, model, criterion, optimizer)
+        model.eval()
+        avg_test_loss, avg_test_acc = run_epoch(False, test_dataloader, model, criterion, optimizer)
 
-        for data in v_train_dataloader:
-            data = data
+        logging.info(
+            "{},\tEpoch {},\tTrain_Loss {},\tTrain_Accuracy {},\tTest_Loss {},\tTest_Accuracy {}".format(data_type,
+                                                                                                         epoch,
+                                                                                                         avg_train_loss,
+                                                                                                         avg_train_acc,
+                                                                                                         avg_test_loss,
+                                                                                                         avg_test_acc))
+        train_losses.append(avg_train_loss)
+        train_acc.append(avg_train_acc)
+        test_losses.append(avg_test_loss)
+        test_acc.append(avg_test_acc)
 
-            # Forward pass
-            optimizer.zero_grad()
-            output = model(data)
+    # plot losses
+    plot_losses("Train", train_losses, train_acc)
+    plot_losses("Test", test_losses, test_acc)
 
-            # Compute loss
-            loss = criterion(output, data.y)
+    # save model
+    if opt.save_model:
+        logging.debug("Saving model")
+        if data_type == "V":
+            torch.save(model.state_dict(), os.path.join(opt.model_folder, "VGNN.pt"))
+        elif data_type == "W":
+            torch.save(model.state_dict(), os.path.join(opt.model_folder, "WGNN.pt"))
 
-            # Backpropagation and optimization
+
+def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[float, float]:
+    total_loss = 0
+    total_pred = 0
+
+    for data in dataloader:
+        # Forward pass
+        optimizer.zero_grad()
+        output = model(data[0])
+
+        # Compute loss
+        assert len(data[-1]) == 1
+        label = data[-1][0]
+        loss = criterion(output, label)
+        pred = check_predition(output, label)
+
+        # Backpropagation and optimization
+        if is_train:
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()
+        total_loss += loss.item()
+        total_pred += pred
 
-        avg_loss = total_loss/len(v_train_dataloader)
-        logging.info("Epoch {}: Loss {}".format(epoch, avg_loss))
+    avg_loss = total_loss/len(dataloader)
+    accuracy = total_pred/len(dataloader)
+    return avg_loss, accuracy
 
-    #mcsplit()
+
+def plot_losses(phase, losses, accuracy=None):
+    epochs = range(1, len(losses) + 1)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    # Plot the loss graph
+    plt.plot(epochs, losses, 'b', label=f'{phase}ing Loss')
+    plt.title(f'{phase}ing Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    if opt.log_folder:
+        plt.savefig(os.path.join(opt.log_folder, f"{opt.timestamp}_{phase}_loss.png"))
+    plt.show()
+
+    if accuracy is not None:
+        # Plot the accuracy graph
+        plt.plot(epochs, accuracy, 'r', label=f'{phase}ing Accuracy')
+        plt.title(f'{phase}ing Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        if opt.log_folder:
+            plt.savefig(os.path.join(opt.log_folder, f"{opt.timestamp}_{phase}_accuracy.png"))
+        plt.show()
+
+
+def check_predition(output, label):
+    return 1 if torch.argmax(torch.flatten(output)) == torch.argmax(torch.flatten(label)) else 0
 
 
 if __name__ == "__main__":

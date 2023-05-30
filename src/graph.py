@@ -35,7 +35,7 @@ class Graph:
             for node in self.adjlist[u].adjNodes:
                 if node.id == v:
                     return 1
-        return 0   
+        return 0
 
     def pack_leaves(self):
         deg = [len(self.adjlist[i].adjNodes) for i in range(self.n)]
@@ -45,12 +45,14 @@ class Graph:
                 if deg[v.id] == 1:
                     labels = (1, self.adjlist[v.id].label)
                     pos = -1
-                    for k in range(len(self.leaves[u])):
+                    k = 0
+                    while True:
+                        if k == len(self.leaves[u]):
+                            self.leaves[u].append((labels, []))
                         if self.leaves[u][k][0] == labels:
                             pos = k
                             break
-                        if k == len(self.leaves[u]):
-                            self.leaves[u].append((labels, []))
+                        k += 1
                     self.leaves[u][pos][1].append(v.id)
 
             self.leaves[u].sort()
@@ -73,7 +75,7 @@ class Graph:
     def computeDensity(self):
         if self.e == 0:
             self.computeNumEdges()
-        return 2 * self.e / (self.n * (self.n - 1))
+        return 2*self.e/(self.n*(self.n - 1))
 
 
 def induced_subgraph(g: Graph, g_deg) -> Graph:
@@ -110,7 +112,7 @@ def readBinaryGraph(filename: str) -> Graph:
 
         # Labelling scheme: see
         # https://github.com/ciaranm/cp2016-max-common-connected-subgraph-paper/blob/master/code/solve_max_common_subgraph.cc
-        m = g.n * 33 // 100
+        m = g.n*33//100
         p = 1
         k1 = 0
         k2 = 0
@@ -118,11 +120,11 @@ def readBinaryGraph(filename: str) -> Graph:
             p *= 2
             k1 = k2
             k2 += 1
-        
+
         # Necesary to skip labels
         for _ in range(nvertices):
             read_word(f)
-        
+
         for i in range(nvertices):
             len = read_word(f)
             for _ in range(len):
@@ -153,7 +155,7 @@ def readAsciiGraph(filename: str) -> Graph:
 
 
 def readGraph(filename: str) -> Graph:
-    path = os.path.join(opt.data_folder, filename)
+    path = opt.data_folder + "/" + filename
     if opt.dataset_format == "binary":
         g = readBinaryGraph(path)
     elif opt.dataset_format == "ascii":

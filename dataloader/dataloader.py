@@ -9,6 +9,7 @@ from torch_geometric.data import Data
 from options import opt
 from typing import Tuple
 import numpy as np
+import pickle
 
 
 class VDataset(Dataset):
@@ -37,6 +38,14 @@ class VDataset(Dataset):
         return search_data_item.v_data, search_data_item.labels
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):
+        # if we already saved the search data, load it and exit
+        if os.path.exists(os.path.join(folder, "v_search_data.pkl")):
+            logging.debug("Reading search data from pickle")
+            with open(os.path.join(folder, "v_search_data.pkl"), "rb") as f:
+                self.search_data = pickle.load(f)
+                return
+
+        # read all search data
         path = os.path.join(folder, "v_data")
         with open(path, "rb") as f:
             # repeat until the end of the file
@@ -45,12 +54,19 @@ class VDataset(Dataset):
                 if i > 100 and False:
                     logging.warning("We are not reading all the data")
                     break
+                if i%1000 == 0:
+                    logging.debug("Reading search data: " + str(i))
                 data = SearchData(f, graph_pair)
                 if not data.is_valid:
                     break
                 if not data.skip:
                     self.search_data.append(data)
-                    i+=1
+                    i += 1
+
+        # save search data to folder as pickle
+        with open(os.path.join(folder, "v_search_data.pkl"), "wb") as f:
+            logging.debug("Saving search data to pickle")
+            pickle.dump(self.search_data, f)
 
 
 class WDataset(VDataset):
@@ -62,6 +78,14 @@ class WDataset(VDataset):
         return search_data_item.w_data, search_data_item.labels
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):
+        # if we already saved the search data, load it and exit
+        if os.path.exists(os.path.join(folder, "w_search_data.pkl")):
+            logging.debug("Reading search data from pickle")
+            with open(os.path.join(folder, "w_search_data.pkl"), "rb") as f:
+                self.search_data = pickle.load(f)
+                return
+
+        # read all search data
         path = os.path.join(folder, "w_data")
         with open(path, "rb") as f:
             # repeat until the end of the file
@@ -71,3 +95,8 @@ class WDataset(VDataset):
                     break
                 if not data.skip:
                     self.search_data.append(data)
+
+        # save search data to folder as pickle
+        with open(os.path.join(folder, "w_search_data.pkl"), "wb") as f:
+            logging.debug("Saving search data to pickle")
+            pickle.dump(self.search_data, f)

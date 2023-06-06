@@ -61,7 +61,7 @@ class Step:
 
 
 def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matching_size_goal, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
-    nodes = 0
+    opt.nodes = 0
     steps = [Step(domains, set())]
     incumbent = []
     current = []
@@ -83,11 +83,11 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
 
         """ V-step """
         if s.w_iter == -1:
-            nodes += 1
+            opt.nodes += 1
 
             # check max iterations
-            if 0 < opt.max_iter < nodes:
-                logging.info(f"Reached {nodes} iterations")
+            if 0 < opt.max_iter < opt.nodes:
+                logging.info(f"Reached {opt.nodes} iterations")
                 return incumbent
 
             # If the current matching is larger than the incumbent matching, update the incumbent
@@ -151,8 +151,8 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             right[s.bd.r + tmp_idx], right[s.bd.r + s.bd.right_len] = right[s.bd.r + s.bd.right_len], right[
                 s.bd.r + tmp_idx]
 
-            """if nodes%10000 == 0:
-                logging.debug(f"nodes: {nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")"""
+            """if opt.nodes%10000 == 0:
+                logging.debug(f"opt.nodes: {opt.nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")"""
 
             cur_len = len(current)
             result = generate_new_domains(s.domains, current, g0_matched, g1_matched, left, right, g0, g1, s.v, w)
@@ -173,7 +173,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             s.domains[s.bd_idx] = s.domains[-1]
             s.domains.pop()
         s = steps.pop()
-        nodes -= 1
+        opt.nodes -= 1
         steps[-1].cur_len = s.cur_len
 
     return incumbent

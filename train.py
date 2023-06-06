@@ -51,6 +51,7 @@ def train_model(data_type, dataset_t, model_t, graph_manager):
     # init model
     criterion = MSELoss()
     model = model_t()
+    model = model.to(opt.device)
     optimizer = Adam(model.parameters(), lr=0.005)
 
     # train model
@@ -97,13 +98,14 @@ def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[
     total_pred = 0
 
     for data in dataloader:
+        data, label = data
         # Forward pass
         optimizer.zero_grad()
-        output = model(data[0])
+        output = model(data).flatten()
 
         # Compute loss
-        assert len(data[-1]) == 1
-        label = data[-1][0]
+        assert len(label) == 1
+        label = torch.sigmoid(label[0]/100)
         loss = criterion(output, label)
         pred = check_predition(output, label)
 

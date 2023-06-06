@@ -15,6 +15,8 @@ class SearchData:
     v_vertex_mapping: Dict[int, int] = {}
     v_data: Data
     labels: torch.Tensor
+    scores: torch.Tensor
+    heuristics: torch.Tensor
     skip = False
 
     def __init__(self, f, graph_pair: GraphPair):
@@ -45,8 +47,7 @@ class SearchData:
         self.v_data, self.v_vertex_mapping = bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain)
         self.v_data = self.v_data.to(opt.device)
 
-        if opt.train_on_heuristic:
-            vertex_scores = self.graph_pair.g0_heuristic[left_bidomain]
+        self.heuristics = torch.tensor(self.graph_pair.g0_heuristic[left_bidomain], dtype=torch.float)
         self.create_labels(self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution], vertex_scores)
         return len(self.labels) == 0 or len(self.v_data.edge_index) == 0  # don't include bidomains with disconnected vertices (GNN cannot infer anything)
 
@@ -54,10 +55,9 @@ class SearchData:
     def create_labels(self, mapping, solution_vertices: List, vertex_scores=None):
         if vertex_scores is None:
             vertex_scores = np.ones(len(mapping.keys()), dtype=int)
-        labels = torch.tensor([abs(vertex_scores[i]) if vtx in solution_vertices else 0 for vtx, i in mapping.items()],
-                              dtype=torch.float).t().contiguous().unsqueeze(1)
-        self.labels = torch.sigmoid(labels/100)
-        self.labels = self.labels.to(opt.device)
+        self.labels = torch.tensor([1 if vtx in solution_vertices else 0 for vtx, i in mapping.items()],
+                              dtype=torch.float)
+        self.scores = torch.tensor(vertex_scores, dtype=torch.float)
 
 
 class SearchDataW(SearchData):
@@ -95,8 +95,7 @@ class SearchDataW(SearchData):
         self.w_data = self.w_data.to(opt.device)
 
         # labels
-        if opt.train_on_heuristic:
-            vertex_scores = self.graph_pair.g1_heuristic[right_bidomain]
+        self.heuristics = self.graph_pair.g1_heuristic[right_bidomain]
         self.create_labels(self.w_vertex_mapping, [pair[1] for pair in self.graph_pair.solution], vertex_scores)
 
         return len(self.labels) == 0 or len(self.w_data.edge_index) == 0

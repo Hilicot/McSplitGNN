@@ -33,9 +33,13 @@ class VDataset(Dataset):
     def __len__(self):
         return len(self.search_data)
 
-    def __getitem__(self, index) -> Tuple[Data, np.ndarray]:
+    def __getitem__(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         search_data_item = self.search_data[index]
-        return search_data_item.v_data, search_data_item.labels
+        if opt.train_on_heuristic:
+            scores = search_data_item.labels.flatten()*search_data_item.heuristics
+        else:
+            scores = search_data_item.labels.flatten()*search_data_item.scores
+        return search_data_item.v_data.to(opt.device), scores.to(opt.device)
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):
         # if we already saved the search data, load it and exit
@@ -60,7 +64,7 @@ class VDataset(Dataset):
                 if not data.skip:
                     self.search_data.append(data)
                 i += 1
-                if i%1000 == 0:
+                if i%100000 == 0:
                     logging.debug("Reading search data: " + str(i))
 
         # save search data to folder as pickle
@@ -73,9 +77,13 @@ class WDataset(VDataset):
     def __init__(self, dataset_folder: str, _graph_manager: GraphManager):
         super().__init__(dataset_folder, _graph_manager)
 
-    def __getitem__(self, item) -> Tuple[Data, Data, np.ndarray]:
+    def __getitem__(self, item) -> Tuple[torch.Tensor, torch.Tensor]:
         search_data_item = self.search_data[item]
-        return search_data_item.w_data, search_data_item.labels
+        if opt.train_on_heuristic:
+            scores = search_data_item.labels.flatten()*search_data_item.heuristics
+        else:
+            scores = search_data_item.labels.flatten()*search_data_item.scores
+        return search_data_item.w_data.to(opt.device), scores.to(opt.device)
 
     def read_from_binary_file(self, folder, graph_pair: GraphPair):
         # if we already saved the search data, load it and exit

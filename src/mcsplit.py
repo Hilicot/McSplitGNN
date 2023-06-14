@@ -5,12 +5,11 @@ from src.graph import *
 from src.reward import Reward, DoubleQRewards
 from src.mcs import mcs
 import logging
-from model.WGNN import WGNN
-from model.VGNN import VGNN
+from model.ModelGNN import ModelGNN
 from typing import List, Optional
 
 
-def mcsplit(v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
+def mcsplit(v_model: Optional[ModelGNN], w_model: Optional[ModelGNN], diff_model: Optional[ModelGNN]):
     [g0_filename, g1_filename] = opt.input_graphs
     g0 = readGraph(g0_filename)
     g1 = readGraph(g1_filename)
@@ -32,7 +31,7 @@ def mcsplit(v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
 
     rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n)
 
-    solution, nodes = mcs(g0_sorted, g1_sorted, rewards, v_model, w_model)
+    solution, nodes = mcs(g0_sorted, g1_sorted, rewards, v_model, w_model, diff_model)
 
     if not check_sol(g0_sorted, g1_sorted, solution):
         logging.error("Found invalid solution!")

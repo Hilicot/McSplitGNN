@@ -3,17 +3,19 @@ import time
 import numpy as np
 import logging
 
+import torch
+
 from options import opt
 from src.vertex_pair import VertexPair
 from src.reward import DoubleQRewards
 from src.graph import Graph
 from src.bidomain import Bidomain
-from model import ModelGNN
+from model import ModelGNN, bidomain_to_gnn_data
 import random
 
 nodes = 0
 
-def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]) -> Tuple[List[VertexPair] ,int]:
+def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN], diff_model: Optional[ModelGNN]) -> Tuple[List[VertexPair] ,int]:
     global nodes
     nodes = 0
     left: List[int] = []  # the buffer of vertex indices for the left partitions
@@ -48,7 +50,7 @@ def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards, v_model: Optional[ModelGN
 
     g0_matched = [False]*g0.n
     g1_matched = [False]*g1.n
-    incumbent = solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, 1, v_model, w_model)
+    incumbent = solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, 1, v_model, w_model, diff_model)
 
     return incumbent, nodes
 
@@ -59,11 +61,13 @@ class Step:
         self.w_iter = w_iter
         self.bd = None
         self.v = v
+        self.left_emb = None
+        self.right_embs = None
         self.cur_len = cur_len
         self.bd_idx = -1
 
 
-def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matching_size_goal, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
+def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matching_size_goal, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN], diff_model: Optional[ModelGNN]):
     global nodes
     opt.nodes = 0
     steps = [Step(domains, set())]
@@ -126,6 +130,13 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             else:
                 tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len)
                 rewards.update_policy_counter(False)
+            
+            if opt.use_diff_gnn:
+                data, _ = bidomain_to_gnn_data(g0, left[bd.l:bd.l + bd.left_len])
+                left_emb = diff_model(data)[tmp_idx] if len(data.edge_index) != 0 else None
+                data, _ = bidomain_to_gnn_data(g1, right[bd.r:bd.r + bd.right_len])
+                right_embs = diff_model(data) if len(data.edge_index) != 0 else None
+            
             v = left[bd.l + tmp_idx]
             bd.left_len -= 1
             left[bd.l + tmp_idx], left[bd.l + bd.left_len] = left[bd.l + bd.left_len], left[bd.l + tmp_idx]
@@ -136,6 +147,9 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             s2.bd_idx = bd_idx
             steps.append(s2)
             s2.bd.right_len -= 1
+            if opt.use_diff_gnn:
+                s2.left_emb = left_emb
+                s2.right_embs = right_embs
             continue
 
         """ W-step """
@@ -146,6 +160,18 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
                 tmp_idx = random.randint(0, s.bd.right_len)
             elif opt.use_gnn_for_w:
                 tmp_idx = w_model.get_prediction(g1, right[s.bd.r:s.bd.r + s.bd.right_len + 1])
+            elif opt.use_diff_gnn:
+                if s.left_emb is None or s.right_embs is None:
+                    tmp_idx = 0
+                else:
+                    # Compute loss
+                    mse_loss = torch.mean((s.left_emb - s.right_embs)**2, dim=1)
+
+                    # select idx with smallest loss
+                    tmp_idx = torch.argmin(mse_loss)
+
+                    # remove from the embeddings
+                    s.right_embs = torch.cat((s.right_embs[:tmp_idx], s.right_embs[tmp_idx:]), dim=0) 
             else:
                 tmp_idx = selectW_index(right, rewards, s.v, s.bd.r, s.bd.right_len + 1, s.wselected)
                 rewards.update_policy_counter(False)

@@ -16,7 +16,7 @@ class BaseOptions:
         self.initialized = False
 
     def initialize(self):
-        input_graphs = ["pair_3_graphs_0_1/g0", "pair_3_graphs_0_1/g1"]
+        input_graphs = ["pair_1_graphs_0_1/g0", "pair_1_graphs_0_1/g1"]
 
         self.parser.add_argument(
             "--device",
@@ -149,8 +149,8 @@ class Options:
         # test options
         self.select_first_vertex = False
         self.random_vertex_selection = False
-        self.use_gnn_for_v = True
-        self.use_gnn_for_w = True
+        self.use_gnn_for_v = True and not self.use_diff_gnn
+        self.use_gnn_for_w = True and not self.use_diff_gnn
 
 
 class Constants:

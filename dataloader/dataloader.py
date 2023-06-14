@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from dataloader.GraphManager import GraphManager, GraphPair
 from dataloader.SearchData import SearchData, SearchDataW
 import logging
-from typing import List
+from typing import List, Union
 from torch_geometric.data import Data
 from options import opt
 from typing import Tuple

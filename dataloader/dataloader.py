@@ -54,7 +54,7 @@ class VDataset(Dataset):
         if os.path.exists(os.path.join(folder, "v_search_data.pkl")):
             logging.debug("Reading search data from pickle")
             with open(os.path.join(folder, "v_search_data.pkl"), "rb") as f:
-                extend_search_data_unique(self.search_data, pickle.load(f))
+                self.search_data = extend_search_data_unique(self.search_data, pickle.load(f))
                 return
 
         # read all search data
@@ -108,7 +108,7 @@ class WDataset(VDataset):
         if os.path.exists(os.path.join(folder, "w_search_data.pkl")):
             logging.debug("Reading search data from pickle")
             with open(os.path.join(folder, "w_search_data.pkl"), "rb") as f:
-                extend_search_data_unique(self.search_data, pickle.load(f))
+                self.search_data = extend_search_data_unique(self.search_data, pickle.load(f))
                 return
 
         # read all search data
@@ -146,7 +146,12 @@ def extend_search_data_unique(search_data, new_search_data):
     :return:
     """
     if len(new_search_data)  > len(search_data):
-        for index, (element_search, element_new) in enumerate(zip(search_data, new_search_data)):
+        index = 0
+        for element_search, element_new in zip(search_data, new_search_data):
             if element_search != element_new:
-                search_data.extend(new_search_data[index:])
                 break
+            index += 1
+        search_data.extend(new_search_data[index:])
+    else:
+        search_data.extend(new_search_data)
+    return search_data

@@ -11,8 +11,11 @@ from src.bidomain import Bidomain
 from model import ModelGNN
 import random
 
+nodes = 0
 
-def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]) -> List[VertexPair]:
+def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]) -> Tuple[List[VertexPair] ,int]:
+    global nodes
+    nodes = 0
     left: List[int] = []  # the buffer of vertex indices for the left partitions
     right: List[int] = []  # the buffer of vertex indices for the right partitions
     domains = []
@@ -47,7 +50,7 @@ def mcs(g0: Graph, g1: Graph, rewards: DoubleQRewards, v_model: Optional[ModelGN
     g1_matched = [False]*g1.n
     incumbent = solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, 1, v_model, w_model)
 
-    return incumbent
+    return incumbent, nodes
 
 class Step:
     def __init__(self, domains, wselected, w_iter=-1, v=-1, cur_len=0):
@@ -61,7 +64,7 @@ class Step:
 
 
 def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matching_size_goal, v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
-    opt.nodes = 0
+    global nodes
     steps = [Step(domains, set())]
     incumbent = []
     current = []
@@ -83,11 +86,11 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
 
         """ V-step """
         if s.w_iter == -1:
-            opt.nodes += 1
+            nodes += 1
 
             # check max iterations
-            if 0 < opt.max_iter < opt.nodes:
-                logging.info(f"Reached {opt.nodes} iterations")
+            if 0 < opt.max_iter < nodes:
+                logging.info(f"Reached {nodes} iterations")
                 return incumbent
 
             # If the current matching is larger than the incumbent matching, update the incumbent
@@ -151,8 +154,8 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             right[s.bd.r + tmp_idx], right[s.bd.r + s.bd.right_len] = right[s.bd.r + s.bd.right_len], right[
                 s.bd.r + tmp_idx]
 
-            """if opt.nodes%10000 == 0:
-                logging.debug(f"opt.nodes: {opt.nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")"""
+            """if nodes%10000 == 0:
+                logging.debug(f"nodes: {nodes}, v: {s.v}, w: {w}, size: {len(current)}, dom: {s.bd.left_len} {s.bd.right_len}")"""
 
             cur_len = len(current)
             result = generate_new_domains(s.domains, current, g0_matched, g1_matched, left, right, g0, g1, s.v, w)
@@ -173,7 +176,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
             s.domains[s.bd_idx] = s.domains[-1]
             s.domains.pop()
         s = steps.pop()
-        opt.nodes -= 1
+        nodes -= 1
         steps[-1].cur_len = s.cur_len
 
     return incumbent

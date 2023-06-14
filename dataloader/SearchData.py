@@ -25,9 +25,14 @@ class SearchData:
         if self.is_valid:
             self.graph_pair = graph_pair
             self.skip = self.convert_to_gnn_data(binary_data)
+        # Clean up to make cache smaller
+        self.graph_pair = None
 
     def __str__(self):
         return f"SearchData: {self.data}"
+
+    def __eq__(self, other):
+        return self.v_data == other.v_data
 
     def read_binary_data(self, f) -> Tuple[int, Tuple[np.ndarray, np.ndarray]]:
         n_bytes = f.read(4)
@@ -49,6 +54,7 @@ class SearchData:
 
         self.heuristics = torch.tensor(self.graph_pair.g0_heuristic[left_bidomain], dtype=torch.float)
         self.create_labels(self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution], vertex_scores)
+        self.v_vertex_mapping = None
         return len(self.labels) == 0 or len(self.v_data.edge_index) == 0  # don't include bidomains with disconnected vertices (GNN cannot infer anything)
 
 
@@ -64,8 +70,17 @@ class SearchDataW(SearchData):
     w_data: Data
     w_vertex_mapping: Dict[int, int] = {}
 
+    def __init__(self, f, graph_pair: GraphPair):
+        super().__init__(f, graph_pair)
+
+        # Clean up to make cache smaller
+        self.v_data = None  # remove it since we don't use it
+
     def __str__(self):
         return f"SearchDataW"
+
+    def __eq__(self, other):
+        return self.w_data == other.w_data
 
     def read_binary_data(self, f) -> Tuple[int, Tuple[np.ndarray, np.ndarray, int, np.ndarray, np.ndarray]]:
         count, binary_data = super().read_binary_data(f)
@@ -95,7 +110,8 @@ class SearchDataW(SearchData):
         self.w_data = self.w_data.to(opt.device)
 
         # labels
-        self.heuristics = self.graph_pair.g1_heuristic[right_bidomain]
+        self.heuristics = torch.tensor(self.graph_pair.g1_heuristic[right_bidomain], dtype=torch.float)
         self.create_labels(self.w_vertex_mapping, [pair[1] for pair in self.graph_pair.solution], vertex_scores)
+        self.w_vertex_mapping = None
 
         return len(self.labels) == 0 or len(self.w_data.edge_index) == 0

@@ -32,16 +32,16 @@ def mcsplit(v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
 
     rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n)
 
-    solution = mcs(g0_sorted, g1_sorted, rewards, v_model, w_model)
+    solution, nodes = mcs(g0_sorted, g1_sorted, rewards, v_model, w_model)
 
     if not check_sol(g0_sorted, g1_sorted, solution):
         logging.error("Found invalid solution!")
     else:
         pass
-    if True:
-        logging.info(f"Solution size: {len(solution)}")
-        logging.debug(f'Solution: {" ".join([str(pair) for pair in solution])}')
 
+    logging.info(f"Solution size: {len(solution)}")
+    logging.debug(f'Solution: {" ".join([str(pair) for pair in solution])}')
+    logging.info(f"Nodes: {nodes}")
     logging.info("Arguments:")
     logging.info(str(vars(opt)))
 

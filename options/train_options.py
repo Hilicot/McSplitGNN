@@ -13,7 +13,8 @@ class TrainOptions(BaseOptions):
 
     def parse(self):
         super().parse()
-        
+
+
         self.opt.phase = 'train'
 
         return self.opt

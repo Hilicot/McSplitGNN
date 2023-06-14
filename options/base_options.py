@@ -133,7 +133,8 @@ class Options:
         self.sort_heuristic = SortPagerank()
         self.reward_policy = RewardPolicy(self.c)
         self.mcs_method = self.c.RL_DAL
-        self.train_on_heuristic = True
+        self.train_on_heuristic = False
+        self.use_diff_gnn = True
 
         # test options
         self.select_first_vertex = False

@@ -31,6 +31,9 @@ class SearchData:
     def __str__(self):
         return f"SearchData: {self.data}"
 
+    def __eq__(self, other):
+        return self.v_data == other.v_data
+
     def read_binary_data(self, f) -> Tuple[int, Tuple[np.ndarray, np.ndarray]]:
         n_bytes = f.read(4)
         if not n_bytes:
@@ -71,10 +74,13 @@ class SearchDataW(SearchData):
         super().__init__(f, graph_pair)
 
         # Clean up to make cache smaller
-        self.v_data = None # remove it since we don't use it
+        self.v_data = None  # remove it since we don't use it
 
     def __str__(self):
         return f"SearchDataW"
+
+    def __eq__(self, other):
+        return self.w_data == other.w_data
 
     def read_binary_data(self, f) -> Tuple[int, Tuple[np.ndarray, np.ndarray, int, np.ndarray, np.ndarray]]:
         count, binary_data = super().read_binary_data(f)

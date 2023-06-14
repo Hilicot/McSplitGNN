@@ -76,17 +76,21 @@ def train_model(data_type, dataset_t, model_t, graph_manager):
         train_acc.append(avg_train_acc)
         test_losses.append(avg_test_loss)
         test_acc.append(avg_test_acc)
-        
-        # save model
-        if opt.save_model:
-            logging.debug("Saving model")
-            folder = os.path.join(os.path.realpath(opt.model_folder), f"graphs_{opt.max_train_graphs}_epochs_{epoch+1}")
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            if data_type == "V":
-                torch.save(model.state_dict(), os.path.join(folder, "VGNN.pt"))
-            elif data_type == "W":
-                torch.save(model.state_dict(), os.path.join(folder, "WGNN.pt"))
+
+    # plot losses
+    plot_losses("Train", train_losses, train_acc)
+    plot_losses("Test", test_losses, test_acc)
+
+    # save model
+    if opt.save_model:
+        logging.debug("Saving model")
+        folder = os.path.join(os.path.realpath(opt.model_folder), f"graphs_{opt.max_train_graphs}_epochs_{opt.epochs}")
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        if data_type == "V":
+            torch.save(model.state_dict(), os.path.join(folder, "VGNN.pt"))
+        elif data_type == "W":
+            torch.save(model.state_dict(), os.path.join(folder, "WGNN.pt"))
 
     # plot losses
     plot_losses("Train", train_losses, train_acc)
@@ -116,8 +120,8 @@ def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[
 
         total_loss += loss.item()
         total_pred += pred
-        if i % 100000 == 0 and i > 0:
-            logging.debug("Batch {},\tLoss {},\tAccuracy {}".format(i, total_loss/(i+1), total_pred/(i+1)))
+        if i%100000 == 0 and i > 0:
+            logging.debug("Batch {},\tLoss {},\tAccuracy {}".format(i, total_loss/(i + 1), total_pred/(i + 1)))
 
     avg_loss = total_loss/len(dataloader)
     accuracy = total_pred/len(dataloader)

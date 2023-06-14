@@ -52,10 +52,13 @@ class SearchData:
         self.v_data, self.v_vertex_mapping = bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain)
         self.v_data = self.v_data.to(opt.device)
 
-        self.heuristics = torch.tensor(self.graph_pair.g0_heuristic[left_bidomain], dtype=torch.float)
-        self.create_labels(self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution], vertex_scores)
-        self.v_vertex_mapping = None
-        return len(self.labels) == 0 or len(self.v_data.edge_index) == 0  # don't include bidomains with disconnected vertices (GNN cannot infer anything)
+        skip = False
+        if not opt.use_diff_gnn:
+            self.heuristics = torch.tensor(self.graph_pair.g0_heuristic[left_bidomain], dtype=torch.float)
+            self.create_labels(self.v_vertex_mapping, [pair[0] for pair in self.graph_pair.solution], vertex_scores)
+            self.v_vertex_mapping = None
+            skip = len(self.labels) == 0
+        return skip or len(self.v_data.edge_index) == 0  # don't include bidomains with disconnected vertices (GNN cannot infer anything)
 
 
     def create_labels(self, mapping, solution_vertices: List, vertex_scores=None):
@@ -69,12 +72,14 @@ class SearchData:
 class SearchDataW(SearchData):
     w_data: Data
     w_vertex_mapping: Dict[int, int] = {}
+    v: int
 
     def __init__(self, f, graph_pair: GraphPair):
         super().__init__(f, graph_pair)
 
         # Clean up to make cache smaller
-        self.v_data = None  # remove it since we don't use it
+        if not opt.use_diff_gnn:
+            self.v_data = None  # remove it since we don't use it
 
     def __str__(self):
         return f"SearchDataW"
@@ -92,6 +97,7 @@ class SearchDataW(SearchData):
             return -1, ()
         v_bytes = f.read(4)
         v = struct.unpack("i", v_bytes)[0]
+        self.v = v
         right_bidomain_bytes = f.read(m*4)
         bounds_bytes = f.read(m*4)
         _right_bidomain = struct.unpack(f"{m}i", right_bidomain_bytes)
@@ -102,6 +108,11 @@ class SearchDataW(SearchData):
 
     def convert_to_gnn_data(self, binary_data) -> bool:
         left_bidomain, vertex_scores, v, right_bidomain, bounds = binary_data
+        if opt.use_diff_gnn:
+            # call super to get v_data and v_vertex_mappings inside the object (we will use them for training
+            super().convert_to_gnn_data((left_bidomain, []))
+            if len(self.v_data.edge_index) == 0:  # don't include bidomains with disconnected vertices (GNN cannot infer anything)
+                return True
 
         # bidomains
         #self.v_data, self.v_vertex_mapping = self.bidomain_to_gnn_data(self.graph_pair.g0, left_bidomain)
@@ -110,8 +121,11 @@ class SearchDataW(SearchData):
         self.w_data = self.w_data.to(opt.device)
 
         # labels
-        self.heuristics = torch.tensor(self.graph_pair.g1_heuristic[right_bidomain], dtype=torch.float)
-        self.create_labels(self.w_vertex_mapping, [pair[1] for pair in self.graph_pair.solution], vertex_scores)
-        self.w_vertex_mapping = None
+        skip = False
+        if not opt.use_diff_gnn:
+            self.heuristics = torch.tensor(self.graph_pair.g1_heuristic[right_bidomain], dtype=torch.float)
+            self.create_labels(self.w_vertex_mapping, [pair[1] for pair in self.graph_pair.solution], vertex_scores)
+            self.w_vertex_mapping = None
+            skip = skip or len(self.labels) == 0
 
-        return len(self.labels) == 0 or len(self.w_data.edge_index) == 0
+        return skip or len(self.w_data.edge_index) == 0

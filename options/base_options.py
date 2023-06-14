@@ -110,6 +110,14 @@ class BaseOptions:
             help="Specify the max number of graphs to load for training. 0 means no limit.",
         )
 
+        self.parser.add_argument(
+            "--limit_train_data",
+            "-ltd",
+            type=int,
+            default=0,
+            help="Specify the max number of search data per graph to use for training. 0 means no limit.",
+        )
+
     def parse(self):
         if not self.initialized:
             self.initialize()
@@ -135,6 +143,8 @@ class Options:
         self.mcs_method = self.c.RL_DAL
         self.train_on_heuristic = False
         self.use_diff_gnn = True
+        self.train_v = True and not self.use_diff_gnn  # train v only if not using diff gnn
+        self.train_w = True and not self.use_diff_gnn  # train w only if not using diff gnn
 
         # test options
         self.select_first_vertex = False

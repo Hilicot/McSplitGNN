@@ -9,6 +9,7 @@ from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from model.VGNN import VGNN
 from model.WGNN import WGNN
+from model.DiffGNN import DiffGNN
 from torch.optim import Adam
 from torch.nn import BCELoss, MSELoss
 import torch
@@ -20,17 +21,14 @@ from datetime import datetime
 
 
 def train():
-    data_types = [
-        "V",
-        "W"
-    ]
-
     graph_manager = GraphManager()
 
-    if "V" in data_types:
+    if opt.train_v:
         train_model("V", VDataset, VGNN, graph_manager)
-    if "W" in data_types:
+    if opt.train_w:
         train_model("W", WDataset, VGNN, graph_manager)
+    if opt.use_diff_gnn:
+        train_model("Diff", WDataset, DiffGNN, graph_manager)
 
     # mcsplit()
 
@@ -59,6 +57,7 @@ def train_model(data_type, dataset_t, model_t, graph_manager):
     train_acc = []
     test_losses = []
     test_acc = []
+    logging.debug("Training {} for {} epochs".format(data_type, opt.epochs))
     for epoch in range(opt.epochs):
         model.train()
         avg_train_loss, avg_train_acc = run_epoch(True, train_dataloader, model, criterion, optimizer)
@@ -88,6 +87,8 @@ def train_model(data_type, dataset_t, model_t, graph_manager):
                 torch.save(model.state_dict(), os.path.join(folder, "VGNN.pt"))
             elif data_type == "W":
                 torch.save(model.state_dict(), os.path.join(folder, "WGNN.pt"))
+            elif data_type == "Diff":
+                torch.save(model.state_dict(), os.path.join(folder, "DiffGNN.pt"))
 
     # plot losses
     plot_losses("Train", train_losses, train_acc)
@@ -98,27 +99,69 @@ def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[
     total_loss = 0
     total_pred = 0
 
-    for i,data in enumerate(dataloader):
-        data, label = data
-        # Forward pass
-        optimizer.zero_grad()
-        output = model(data).flatten()
+    if not opt.use_diff_gnn:
+        for i,data in enumerate(dataloader):
+            data, label = data
+            # Forward pass
+            optimizer.zero_grad()
+            output = model(data).flatten()
 
-        # Compute loss
-        assert len(label) == 1
-        label = torch.sigmoid(label[0]/100)
-        loss = criterion(output, label)
-        pred = check_predition(output, label)
+            # Compute loss
+            assert len(label) == 1
+            label = torch.sigmoid(label[0]/100)
+            loss = criterion(output, label)
+            pred = check_predition(output, label)
 
-        # Backpropagation and optimization
-        if is_train:
-            loss.backward()
-            optimizer.step()
+            # Backpropagation and optimization
+            if is_train:
+                loss.backward()
+                optimizer.step()
 
-        total_loss += loss.item()
-        total_pred += pred
-        if i%100000 == 0 and i > 0:
-            logging.debug("Batch {},\tLoss {},\tAccuracy {}".format(i, total_loss/(i + 1), total_pred/(i + 1)))
+            total_loss += loss.item()
+            total_pred += pred
+            if i%100000 == 0 and i > 0:
+                logging.debug("Batch {},\tLoss {},\tAccuracy {}".format(i, total_loss/(i + 1), total_pred/(i + 1)))
+
+    else: # use_diff_gnn
+
+        for i, data in enumerate(dataloader):
+            v_data, w_data, label = data
+            label = label[0]
+            # Forward pass
+            optimizer.zero_grad()
+            v_embs = model(v_data)
+            w_embs = model(w_data)
+
+            loss = None
+            # handle all v_embs separately for simplicity of code
+            for j, v_emb in enumerate(v_embs):
+                # balance w_embs delete some w_embs such that we have an equal numebr of w_embs with label 0 and 1
+                w_embs_bal, w_label_bal = balanced_subset(w_embs, label[j])
+
+                # compute target difference
+                w_labels = torch.broadcast_to(w_label_bal.unsqueeze(1), (-1, 64)) # matrix. for each w_emb, we have 64 identical values 0 or 1 (= w non matched or matched to v)
+                target_diffs = -(w_labels-1)/2  # if v and w are matched, diff must be 0, else 0.5
+                target_diffs = target_diffs.float().to(opt.device)
+
+                # compute diffence between embeddings (w/ broadcasting)
+                diff = torch.abs(v_emb - w_embs_bal)
+
+                # compute loss of the difference
+                _loss = criterion(diff, target_diffs)
+                if loss is None:
+                    loss = _loss
+                else:
+                    loss += _loss
+
+            # Backpropagation and optimization
+            if is_train:
+                loss.backward()
+                optimizer.step()
+
+            total_loss += loss.item()
+            total_pred = 0
+            if i%100000 == 0 and i > 0:
+                logging.debug("Batch {},\tLoss {}".format(i, total_loss/(i + 1)))
 
     avg_loss = total_loss/len(dataloader)
     accuracy = total_pred/len(dataloader)
@@ -155,6 +198,26 @@ def plot_losses(phase, losses, accuracy=None):
 
 def check_predition(output, label):
     return 1 if torch.argmax(torch.flatten(output)) == torch.argmax(torch.flatten(label)) else 0
+
+
+def balanced_subset(w_embs, w_labels):
+    # Find indices of elements with label 0 and label 1
+    label_0_indices = torch.where(w_labels == 0)[0]
+    label_1_indices = torch.where(w_labels == 1)[0]
+
+    # Determine the smaller count of label 0 and label 1
+    subset_size = max(min(len(label_0_indices), len(label_1_indices)),1)
+
+    # Randomly select subset_size number of indices from each label
+    label_0_subset_indices = torch.randperm(len(label_0_indices))[:subset_size]
+    label_1_subset_indices = torch.randperm(len(label_1_indices))[:subset_size]
+
+    # Get the subset of w_embs based on the selected indices
+    balanced_subset_indices = torch.cat([label_0_indices[label_0_subset_indices], label_1_indices[label_1_subset_indices]])
+    balanced_subset = w_embs[balanced_subset_indices]
+    balanced_subset_labels = w_labels[balanced_subset_indices]
+
+    return balanced_subset, balanced_subset_labels
 
 
 if __name__ == "__main__":

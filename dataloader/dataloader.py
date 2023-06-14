@@ -108,10 +108,11 @@ class WDataset(VDataset):
             for v, v_index in s.v_vertex_mapping.items():
                 # for each remapped vertex w, get if it is matched to v in the solution
                 for w, w_index in s.w_vertex_mapping.items():
-                    if [v,w] in s.graph_pair.solution:
+                    if np.any(np.all(s.graph_pair.solution == [v,w], axis=1)): # if v and w are matched in the solution
                         labels[v_index][w_index] = 1
             return s.v_data.to(opt.device), s.w_data.to(opt.device), torch.tensor(labels).to(opt.device)
 
+        # don't use diffGNN
         if opt.train_on_heuristic:
             scores = s.labels.flatten()*s.heuristics.astype(float)
         else:

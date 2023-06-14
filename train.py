@@ -123,35 +123,39 @@ def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[
                 logging.debug("Batch {},\tLoss {},\tAccuracy {}".format(i, total_loss/(i + 1), total_pred/(i + 1)))
 
     else: # use_diff_gnn
-
+        ne = 64 # size of embedding
         for i, data in enumerate(dataloader):
             v_data, w_data, label = data
             label = label[0]
             # Forward pass
             optimizer.zero_grad()
-            v_embs = model(v_data)
-            w_embs = model(w_data)
+            v_embs = model(v_data)  # nv x ne
+            w_embs = model(w_data)  # nw x ne
+            nv = v_embs.shape[0]
+            nw = w_embs.shape[0]
 
             loss = None
-            # handle all v_embs separately for simplicity of code
-            for j, v_emb in enumerate(v_embs):
-                # balance w_embs delete some w_embs such that we have an equal numebr of w_embs with label 0 and 1
-                w_embs_bal, w_label_bal = balanced_subset(w_embs, label[j])
 
-                # compute target difference
-                w_labels = torch.broadcast_to(w_label_bal.unsqueeze(1), (-1, 64)) # matrix. for each w_emb, we have 64 identical values 0 or 1 (= w non matched or matched to v)
-                target_diffs = -(w_labels-1)/2  # if v and w are matched, diff must be 0, else 0.5
-                target_diffs = target_diffs.float().to(opt.device)
+            # compute all diffences between embeddings (w/ broadcasting)
+            diff = torch.abs(v_embs.reshape(nv,1,ne) - w_embs.reshape(1,nw,ne)) # nv x nw x ne
+            diff = diff.reshape(nv*nw, ne) # (nv*nw) x ne
 
-                # compute diffence between embeddings (w/ broadcasting)
-                diff = torch.abs(v_emb - w_embs_bal)
+            # balance embs: delete some embs such that we have an equal numebr of embs with label 0 and 1
+            label = label.reshape(nv*nw)  # (nv*nw)
+            diff_bal, label_bal = balanced_subset(diff, label) # m x ne, m
 
-                # compute loss of the difference
-                _loss = criterion(diff, target_diffs)
-                if loss is None:
-                    loss = _loss
-                else:
-                    loss += _loss
+            # compute target difference
+            label_bal = torch.broadcast_to(label_bal.unsqueeze(1), (-1, ne)) # broadcast to (m x ne) of identical 0 or 1 (= w non matched or matched to v)
+            target_diffs = -(label_bal-1)/2  # (m x ne). if v and w are matched, diff must be 0, else 0.5
+            target_diffs = target_diffs.float().to(opt.device)
+
+
+            # compute loss of the difference
+            _loss = criterion(diff_bal, target_diffs)
+            if loss is None:
+                loss = _loss
+            else:
+                loss += _loss
 
             # Backpropagation and optimization
             if is_train:
@@ -200,10 +204,10 @@ def check_predition(output, label):
     return 1 if torch.argmax(torch.flatten(output)) == torch.argmax(torch.flatten(label)) else 0
 
 
-def balanced_subset(w_embs, w_labels):
+def balanced_subset(embs, labels):
     # Find indices of elements with label 0 and label 1
-    label_0_indices = torch.where(w_labels == 0)[0]
-    label_1_indices = torch.where(w_labels == 1)[0]
+    label_0_indices = torch.where(labels == 0)[0]
+    label_1_indices = torch.where(labels == 1)[0]
 
     # Determine the smaller count of label 0 and label 1
     subset_size = max(min(len(label_0_indices), len(label_1_indices)),1)
@@ -214,8 +218,8 @@ def balanced_subset(w_embs, w_labels):
 
     # Get the subset of w_embs based on the selected indices
     balanced_subset_indices = torch.cat([label_0_indices[label_0_subset_indices], label_1_indices[label_1_subset_indices]])
-    balanced_subset = w_embs[balanced_subset_indices]
-    balanced_subset_labels = w_labels[balanced_subset_indices]
+    balanced_subset = embs[balanced_subset_indices]
+    balanced_subset_labels = labels[balanced_subset_indices]
 
     return balanced_subset, balanced_subset_labels
 

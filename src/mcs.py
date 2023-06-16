@@ -202,6 +202,10 @@ def select_bidomain(
     best = -1
     for i in range(len(domains)):
         bd = domains[i]
+        
+        if opt.connected and current_matching_size > 0 and not bd.is_adjacent:
+            continue
+        
         len_bd = max(bd.left_len, bd.right_len)
         if len_bd < min_size:
             min_size = len_bd

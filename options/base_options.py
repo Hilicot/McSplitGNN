@@ -116,6 +116,14 @@ class BaseOptions:
             default=0,
             help="Specify the max number of search data per graph to use for training. 0 means no limit.",
         )
+        
+        self.parser.add_argument(
+            "--connected",
+            "-c",
+            type=bool,
+            default=False,
+            help="Specify whether to find a connected MCIS or not.",
+        )
 
 
     def parse(self):
@@ -147,9 +155,10 @@ class Options:
         # test options
         self.select_first_vertex = False
         self.random_vertex_selection = False
-        self.sort_heuristic = "GNN" # "Degree", "GNN", "Pagerank"
-        self.use_gnn_for_v = False
-        self.use_gnn_for_w = False
+        self.sort_heuristic = "Degree" # "Degree", "GNN", "Pagerank"
+        self.use_gnn_for_v = True
+        self.use_gnn_for_w = True
+        self.use_single_rewards = True
 
 
 class Constants:

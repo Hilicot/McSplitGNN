@@ -1,6 +1,6 @@
 from __future__ import annotations
 from src.vertex_pair import VertexPair
-from src.reward import Reward, DoubleQRewards
+from src.reward import Reward, DoubleQRewards, SingleQRewards
 from src.mcs import mcs
 import logging
 from model.WGNN import WGNN
@@ -32,7 +32,7 @@ def mcsplit(v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
     g0_sorted.pack_leaves()
     g1_sorted.pack_leaves()
 
-    rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n)
+    rewards = DoubleQRewards(g0_sorted.n, g1_sorted.n) if not opt.use_single_rewards else SingleQRewards(g0_sorted.n, g1_sorted.n)
 
     solution, nodes = mcs(g0_sorted, g1_sorted, rewards, v_model, w_model)
 

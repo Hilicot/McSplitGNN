@@ -118,6 +118,14 @@ class BaseOptions:
             help="Specify the max number of search data per graph to use for training. 0 means no limit.",
         )
 
+        self.parser.add_argument(
+            "--search_data_filter",
+            "-sdf",
+            type=int,
+            default=0,
+            help="Specify the sampling filter for the search data. 0 means no filter.",
+        )
+
     def parse(self):
         if not self.initialized:
             self.initialize()

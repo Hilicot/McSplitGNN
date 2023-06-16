@@ -104,12 +104,9 @@ class WDataset(VDataset):
         s = self.search_data[item]
         if opt.use_diff_gnn: # use diffGNN
             labels = np.zeros((len(s.v_vertex_mapping), len(s.w_vertex_mapping)))
-            # for each remapped vertex v
-            for v, v_index in s.v_vertex_mapping.items():
-                # for each remapped vertex w, get if it is matched to v in the solution
-                for w, w_index in s.w_vertex_mapping.items():
-                    if np.any(np.all(s.graph_pair.solution == [v,w], axis=1)): # if v and w are matched in the solution
-                        labels[v_index][w_index] = 1
+            for v,w in s.graph_pair.solution:
+                if v in s.v_vertex_mapping and w in s.w_vertex_mapping:
+                    labels[s.v_vertex_mapping[v]][s.w_vertex_mapping[w]] = 1
             return s.v_data.to(opt.device), s.w_data.to(opt.device), torch.tensor(labels).to(opt.device)
 
         # don't use diffGNN

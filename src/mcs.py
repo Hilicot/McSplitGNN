@@ -172,6 +172,7 @@ def solve(g0, g1, rewards, g0_matched, g1_matched, domains, left, right, matchin
 
                     # remove from the embeddings
                     s.right_embs = torch.cat((s.right_embs[:tmp_idx], s.right_embs[tmp_idx:]), dim=0) 
+                rewards.update_policy_counter(False)
             else:
                 tmp_idx = selectW_index(right, rewards, s.v, s.bd.r, s.bd.right_len + 1, s.wselected)
                 rewards.update_policy_counter(False)

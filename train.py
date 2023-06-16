@@ -40,6 +40,12 @@ def train_model(data_type, dataset_t, model_t, graph_manager):
     folder = os.path.realpath(opt.data_folder)
 
     dataset = dataset_t(folder, graph_manager)
+
+    if opt.search_data_filter > 0:
+        # select 1 sample data every search_data_filter
+        dataset.search_data = dataset.search_data[::opt.search_data_filter]
+    logging.debug("Dataset size: {}".format(len(dataset)))
+
     train_size = int(opt.train_ratio/100*len(dataset))
     test_size = len(dataset) - train_size
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
@@ -127,6 +133,7 @@ def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[
         for i, data in enumerate(dataloader):
             v_data, w_data, label = data
             label = label[0]
+
             # Forward pass
             optimizer.zero_grad()
             v_embs = model(v_data)  # nv x ne
@@ -149,7 +156,6 @@ def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[
             target_diffs = -(label_bal-1)/2  # (m x ne). if v and w are matched, diff must be 0, else 0.5
             target_diffs = target_diffs.float().to(opt.device)
 
-
             # compute loss of the difference
             _loss = criterion(diff_bal, target_diffs)
             if loss is None:
@@ -164,7 +170,7 @@ def run_epoch(is_train: bool, dataloader, model, criterion, optimizer) -> Tuple[
 
             total_loss += loss.item()
             total_pred = 0
-            if i%100000 == 0 and i > 0:
+            if i%10000 == 0 and i > 0:
                 logging.debug("Batch {},\tLoss {}".format(i, total_loss/(i + 1)))
 
     avg_loss = total_loss/len(dataloader)

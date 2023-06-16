@@ -110,6 +110,15 @@ class BaseOptions:
             help="Specify the max number of graphs to load for training. 0 means no limit.",
         )
 
+        self.parser.add_argument(
+            "--limit_train_data",
+            "-ltd",
+            type=int,
+            default=0,
+            help="Specify the max number of search data per graph to use for training. 0 means no limit.",
+        )
+
+
     def parse(self):
         if not self.initialized:
             self.initialize()

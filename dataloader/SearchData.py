@@ -45,6 +45,7 @@ class SearchData:
         vertex_scores_bytes = f.read(m*4)
         _left_bidomain = struct.unpack(f"{n}i", left_bidomain_bytes)
         _vertex_scores = struct.unpack(f"{m}i", vertex_scores_bytes)
+        #print(f"{n} {m} {len(_left_bidomain)} {len(_vertex_scores)}")
         return n, (np.array(_left_bidomain, dtype=int), np.array(_vertex_scores, dtype=int))
 
     def convert_to_gnn_data(self, binary_data) -> bool:

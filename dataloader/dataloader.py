@@ -64,7 +64,7 @@ class VDataset(Dataset):
             # repeat until the end of the file
             i = 0
             while True:
-                if i > 100 and False:
+                if opt.limit_train_data and i > opt.limit_train_data:
                     logging.warning("We are not reading all the data")
                     break
                 data = SearchData(f, graph_pair)
@@ -118,6 +118,9 @@ class WDataset(VDataset):
             # repeat until the end of the file
             i = 0
             while True:
+                if opt.limit_train_data and i > opt.limit_train_data:
+                    logging.warning("We are not reading all the data")
+                    break
                 data = SearchDataW(f, graph_pair)
                 if not data.is_valid:
                     break

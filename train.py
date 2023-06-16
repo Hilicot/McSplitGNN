@@ -21,7 +21,7 @@ from datetime import datetime
 
 def train():
     data_types = [
-        # "V",
+        "V",
         "W"
     ]
 

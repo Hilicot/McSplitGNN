@@ -5,6 +5,7 @@ from typing import Dict, Tuple
 import numpy as np
 from options import opt
 import logging
+from src.sort_heuristic import *
 
 
 class GraphManager:
@@ -63,8 +64,9 @@ class GraphPair:
         self.g1 = g1
         self.solution = solution
         logging.debug("Computing heuristics")
-        self.g0_heuristic = np.array(opt.sort_heuristic.sort(g0))
-        self.g1_heuristic = np.array(opt.sort_heuristic.sort(g1))
+        sort_heuristic = heuristics[opt.sort_heuristic]
+        self.g0_heuristic = np.array(sort_heuristic.sort(g0))
+        self.g1_heuristic = np.array(sort_heuristic.sort(g1))
 
     def __str__(self):
         return f'g0:\n{self.g0}\ng1:\n{self.g1}\nsolution:\n{self.solution}'

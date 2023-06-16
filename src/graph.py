@@ -1,10 +1,9 @@
 from __future__ import annotations
 from io import BufferedReader
 from typing import List
+from options import opt
 import os
 import logging
-
-from options import opt
 
 
 class Node:

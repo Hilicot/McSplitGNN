@@ -1,7 +1,6 @@
 import argparse
 import os
 import numpy as np
-from src.sort_heuristic import *
 import copy
 
 
@@ -139,17 +138,18 @@ class Options:
 
         # static options
         self.swap_policy = self.c.McSPLIT_SD
-        self.sort_heuristic = SortPagerank()
         self.reward_policy = RewardPolicy(self.c)
         self.mcs_method = self.c.RL_DAL
+
         self.train_on_heuristic = False
         self.use_diff_gnn = False
 
         # test options
         self.select_first_vertex = False
         self.random_vertex_selection = False
-        self.use_gnn_for_v = True
-        self.use_gnn_for_w = True
+        self.sort_heuristic = "GNN" # "Degree", "GNN", "Pagerank"
+        self.use_gnn_for_v = False
+        self.use_gnn_for_w = False
 
 
 class Constants:

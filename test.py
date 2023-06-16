@@ -1,5 +1,5 @@
-from src.mcsplit import mcsplit
 from options import opt
+from src.mcsplit import mcsplit
 import logging
 import torch
 from model import VGNN

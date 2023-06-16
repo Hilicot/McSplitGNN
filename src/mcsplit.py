@@ -1,13 +1,14 @@
 from __future__ import annotations
-from options import opt
 from src.vertex_pair import VertexPair
-from src.graph import *
 from src.reward import Reward, DoubleQRewards
 from src.mcs import mcs
 import logging
 from model.WGNN import WGNN
 from model.VGNN import VGNN
 from typing import List, Optional
+from options import opt
+from src.graph import Graph, induced_subgraph, readGraph
+from src.sort_heuristic import *
 
 
 def mcsplit(v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
@@ -22,8 +23,9 @@ def mcsplit(v_model: Optional[ModelGNN], w_model: Optional[ModelGNN]):
         [g0, g1] = [g1, g0]
         logging.debug("Swapped graphs")
 
-    g0_degree = opt.sort_heuristic.sort(g0)
-    g1_degree = opt.sort_heuristic.sort(g1)
+    sort_heuristic = heuristics[opt.sort_heuristic]
+    g0_degree = sort_heuristic.sort(g0)
+    g1_degree = sort_heuristic.sort(g1)
     g0_sorted = induced_subgraph(g0, g0_degree)
     g1_sorted = induced_subgraph(g1, g1_degree)
 

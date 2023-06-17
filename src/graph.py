@@ -79,8 +79,8 @@ class Graph:
 
 def induced_subgraph(g: Graph, g_deg) -> Graph:
     # compute mapping vv
-    vv = list(range(g.n))
-    vv.sort(key=lambda x: g_deg[x], reverse=True)
+    vv = sorted(range(g.n), key=lambda x: g_deg[x], reverse=True)
+    vv_indices = {val: idx for idx, val in enumerate(vv)}
 
     # sort graph
     subg = Graph(g.n)
@@ -88,12 +88,14 @@ def induced_subgraph(g: Graph, g_deg) -> Graph:
         subg.adjlist[i] = g.adjlist[vv[i]]
         subg.adjlist[i].id = i
         for j in range(len(subg.adjlist[i].adjNodes)):
-            subg.adjlist[i].adjNodes[j].id = vv.index(subg.adjlist[i].adjNodes[j].id)
+            subg.adjlist[i].adjNodes[j].id = vv_indices[subg.adjlist[i].adjNodes[j].id]
 
         subg.adjlist[i].adjNodes.sort(key=lambda x: x.id)
 
+    del vv_indices
     subg.e = g.e
     return subg
+
 
 
 def read_word(fp: BufferedReader):

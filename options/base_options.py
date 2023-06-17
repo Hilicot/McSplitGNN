@@ -15,7 +15,7 @@ class BaseOptions:
         self.initialized = False
 
     def initialize(self):
-        input_graphs = ["pair_3_graphs_0_1/g0", "pair_3_graphs_0_1/g1"]
+        input_graphs = ["pair_14_graphs_0_1/g1.txt", "pair_14_graphs_0_1/g2.txt"]
 
         self.parser.add_argument(
             "--device",
